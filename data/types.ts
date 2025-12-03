@@ -11,11 +11,20 @@ export interface Table {
   id: number;
   table_number: string;
   capacity: number;
-  status: "free" | "occupied" | "merged" | "cleaning" | string;
+  status: string;
   current_order_id: number | null;
-  table_group_id?: number | null;
-  updated_at: string | null;
+  updated_at: string;
+
+  orders?: Order[];
+  table_groups?: TableGroup | null;
 }
+
+export interface TableGroup {
+  id: number;
+  created_at: string;
+  closed_at: string | null;
+}
+
 export interface MenuItem {
   id: number;
   name: string;
@@ -67,13 +76,13 @@ export interface StaffShift {
 }
 export interface Order {
   id: number;
-  status: "open" | "closed" | "paid" | string;
-  total_amount: number;
-  created_at: string | null;
-  closed_at?: string | null;
-  paid_at?: string | null;
-  table_group_id?: number | null;
+  status: string;
+  total_amount: string;
+  created_at: string;
+  closed_at: string | null;
+  paid_at: string | null;
 }
+
 export interface OrderItem {
   id: number;
   order_id: number;

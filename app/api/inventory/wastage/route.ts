@@ -1,34 +1,65 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
+// GET all wastage logs
 export async function GET() {
-  const logs = await prisma.wastageLog.findMany({
-    include: { inventoryItem: true },
-    orderBy: { createdAt: "desc" }
-  });
+  try {
+    const logs = await prisma.inventory_adjustments.findMany({
+      where: {
+        reason: "wastage",
+      },
+      include: {
+        inventory_items: true,
+        staff: true,
+      },
+      orderBy: {
+        created_at: "desc",
+      },
+    });
 
-  return NextResponse.json(logs);
+    return NextResponse.json(logs);
+  } catch (err) {
+    console.error("GET /api/inventory/wastage error", err);
+    return NextResponse.json({ error: "Failed to fetch wastage logs" }, { status: 500 });
+  }
 }
 
+// POST create wastage log
 export async function POST(req: Request) {
-  const { inventoryItemId, quantityLost, reason } = await req.json();
+  try {
+    const { inventory_item_id, amount, notes } = await req.json();
 
-  if (!inventoryItemId || !quantityLost)
-    return NextResponse.json({ error: "inventoryItemId and quantityLost required" }, { status: 400 });
+    if (!inventory_item_id || !amount) {
+      return NextResponse.json(
+        { error: "inventory_item_id and amount are required" },
+        { status: 400 }
+      );
+    }
 
-  const log = await prisma.wastageLog.create({
-    data: {
-      inventoryItemId,
-      quantityLost,
-      reason: reason ?? "Unspecified"
-    },
-  });
+    // Create adjustment record
+    const log = await prisma.inventory_adjustments.create({
+      data: {
+        inventory_item_id,
+        amount: String(amount), // Prisma Decimal
+        reason: "wastage",
+        notes,
+        adjusted_by: 1, // CHANGE IF YOU PASS STAFF ID
+      },
+    });
 
-  // Optional: decrement actual stock
-  await prisma.inventoryItem.update({
-    where: { id: inventoryItemId },
-    data: { quantity: { decrement: quantityLost } },
-  });
+    // Reduce inventory stock
+    await prisma.inventory_items.update({
+      where: { id: inventory_item_id },
+      data: {
+        current_stock: {
+          decrement: amount,
+        },
+      },
+    });
 
-  return NextResponse.json(log);
+    return NextResponse.json(log, { status: 201 });
+  } catch (err) {
+    console.error("POST /api/inventory/wastage error", err);
+    return NextResponse.json({ error: "Failed to create wastage log" }, { status: 500 });
+  }
 }
