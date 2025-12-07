@@ -15,7 +15,7 @@ export default function LoginPage() {
 
     const res = await fetch("/api/login", {
       method: "POST",
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password }), //=> {username:"..",pasword:".."}
     });
 
     if (!res.ok) {
@@ -55,7 +55,7 @@ export default function LoginPage() {
 
         {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
 
-        <button className="w-full bg-violet-400 hover:bg-black-900 text-white p-2 rounded-md">
+        <button className="w-full bg-black text-white p-2 rounded-md">
           Login
         </button>
       </form>
