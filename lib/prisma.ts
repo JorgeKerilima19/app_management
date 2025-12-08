@@ -1,12 +1,25 @@
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg"; // or your DB adapter
 
-declare global {
-  // eslint-disable-next-line no-var
-  var prisma: PrismaClient | undefined;
+const datasourceUrl = process.env.DATABASE_URL;
+
+if (!datasourceUrl) {
+  throw new Error("DATABASE_URL is not set");
 }
 
-const prisma = global.prisma || new PrismaClient();
+const adapter = new PrismaPg({
+  connectionString: datasourceUrl,
+});
 
-if (process.env.NODE_ENV !== "production") global.prisma = prisma;
+const prisma =
+  globalThis.prisma ||
+  new PrismaClient({
+    log: ["query"],
+    adapter,
+  });
+
+if (process.env.NODE_ENV !== "production") {
+  globalThis.prisma = prisma;
+}
 
 export default prisma;

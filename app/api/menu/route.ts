@@ -1,39 +1,42 @@
+// app/api/menu/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireAuth } from "@/lib/auth";
 
 export async function GET() {
   try {
-    const items = await prisma.menu_items.findMany({ include: { inventory_items: true, stations: true } });
+    const items = await prisma.menuItem.findMany({
+      orderBy: { id: "asc" },
+    });
     return NextResponse.json(items);
   } catch (err) {
-    console.error("GET /api/menu error", err);
-    return NextResponse.json({ error: "Failed to fetch menu" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch menu items" },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(req: Request) {
+  const auth = requireAuth(req);
+  if (!auth)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { name, description, price, category, type } = await req.json();
+
   try {
-    const body = await req.json();
-    const { name, price, category, is_beverage = false, inventory_item_id = null, station_id = null } = body;
-
-    if (!name || price == null || !category) {
-      return NextResponse.json({ error: "name, price and category required" }, { status: 400 });
-    }
-
-    const created = await prisma.menu_items.create({
+    const item = await prisma.menuItem.create({
       data: {
         name,
-        price,
-        category,
-        is_beverage,
-        inventory_item_id,
-        station_id
-      }
+        description: description || null,
+        price: parseFloat(price),
+        category, // must be MenuCategory enum
+        type, // must be MenuType enum
+      },
     });
 
-    return NextResponse.json(created, { status: 201 });
-  } catch (err) {
-    console.error("POST /api/menu error", err);
-    return NextResponse.json({ error: "Failed to create menu item" }, { status: 500 });
+    return NextResponse.json(item);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
   }
 }

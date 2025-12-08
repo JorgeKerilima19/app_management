@@ -1,45 +1,65 @@
+// app/api/tables/[id]/route.ts
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { PrismaClient, TableStatus } from "@prisma/client";
+import { requireAuth } from "@/lib/auth";
 
-type Params = { params: { id: string } };
+const prisma = new PrismaClient();
 
-export async function GET(_req: Request, { params }: Params) {
+export async function GET(req: Request, { params }: any) {
+  const auth = requireAuth(req);
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   try {
-    const id = Number(params.id);
-    const table = await prisma.tables.findUnique({
-      where: { id },
-      include: { table_groups: true, orders: true }
+    const table = await prisma.restaurantTable.findUnique({
+      where: { id: Number(params.id) },
+      include: { group: true, orders: true },
     });
-    if (!table) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    if (!table) {
+      return NextResponse.json({ error: "Table not found" }, { status: 404 });
+    }
+
     return NextResponse.json(table);
-  } catch (err) {
-    console.error("GET /api/tables/[id] error", err);
-    return NextResponse.json({ error: "Failed to fetch table" }, { status: 500 });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 400 });
   }
 }
 
-export async function PUT(req: Request, { params }: Params) {
+export async function PUT(req: Request, { params }: any) {
+  const auth = requireAuth(req);
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const body = await req.json();
+
   try {
-    const id = Number(params.id);
-    const body = await req.json();
-    const updated = await prisma.tables.update({
-      where: { id },
-      data: body
+    const updated = await prisma.restaurantTable.update({
+      where: { id: Number(params.id) },
+      data: {
+        name: body.name,
+        capacity: body.capacity ? Number(body.capacity) : undefined,
+        status: body.status as TableStatus,
+        groupId: body.groupId ?? undefined,
+      },
+      include: { group: true },
     });
+
     return NextResponse.json(updated);
-  } catch (err) {
-    console.error("PUT /api/tables/[id] error", err);
-    return NextResponse.json({ error: "Failed to update table" }, { status: 500 });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 400 });
   }
 }
 
-export async function DELETE(_req: Request, { params }: Params) {
+export async function DELETE(req: Request, { params }: any) {
+  const auth = requireAuth(req);
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   try {
-    const id = Number(params.id);
-    await prisma.tables.delete({ where: { id } });
-    return NextResponse.json({ ok: true });
-  } catch (err) {
-    console.error("DELETE /api/tables/[id] error", err);
-    return NextResponse.json({ error: "Failed to delete table" }, { status: 500 });
+    await prisma.restaurantTable.delete({
+      where: { id: Number(params.id) },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 400 });
   }
 }

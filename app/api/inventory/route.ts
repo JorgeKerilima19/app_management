@@ -1,28 +1,32 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { PrismaClient } from "@prisma/client";
+import { requireAuth } from "@/lib/auth";
 
-export async function GET() {
-  try {
-    const items = await prisma.inventory_items.findMany({ include: { inventory_adjustments: true, menu_items: true } });
-    return NextResponse.json(items);
-  } catch (err) {
-    console.error("GET /api/inventory error", err);
-    return NextResponse.json({ error: "Failed to fetch inventory" }, { status: 500 });
-  }
+const prisma = new PrismaClient();
+
+export async function GET(req: Request) {
+  const items = await prisma.inventoryItem.findMany();
+  return NextResponse.json(items);
 }
 
 export async function POST(req: Request) {
-  try {
-    const { name, unit_type, current_stock = 0, low_stock_threshold = 0, category } = await req.json();
-    if (!name || !unit_type) return NextResponse.json({ error: "name and unit_type required" }, { status: 400 });
+  const auth = requireAuth(req);
+  if (!auth)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const created = await prisma.inventory_items.create({
-      data: { name, unit_type, current_stock, low_stock_threshold, category }
-    });
+  const { name, category, unit, currentStock, minStock, isConsumable } =
+    await req.json();
 
-    return NextResponse.json(created, { status: 201 });
-  } catch (err) {
-    console.error("POST /api/inventory error", err);
-    return NextResponse.json({ error: "Failed to create inventory item" }, { status: 500 });
-  }
+  const item = await prisma.inventoryItem.create({
+    data: {
+      name,
+      category,
+      unit,
+      currentStock: Number(currentStock),
+      minStock: Number(minStock),
+      isConsumable: isConsumable ?? true,
+    },
+  });
+
+  return NextResponse.json(item);
 }

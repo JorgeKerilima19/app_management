@@ -1,62 +1,45 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { loginAction } from "../auth/login/actions";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [username, setUser] = useState("");
-  const [password, setPass] = useState("");
-  const [error, setError] = useState("");
-
-  const submit = async (e: any) => {
-    e.preventDefault();
-    setError("");
-
-    const res = await fetch("/api/login", {
-      method: "POST",
-      body: JSON.stringify({ username, password }), //=> {username:"..",pasword:".."}
-    });
-
-    if (!res.ok) {
-      setError("Invalid username or password.");
-      return;
-    }
-
-    const data = await res.json();
-
-    // redirect by role
-    router.push("/dashboard");
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <form
-        onSubmit={submit}
-        className="w-[320px] border p-6 rounded-xl shadow-sm bg-white"
+        action={loginAction}
+        className="bg-white shadow-xl rounded-xl p-8 w-full max-w-md border border-gray-200"
       >
-        <h1 className="text-xl font-semibold mb-4">Login</h1>
+        <h1 className="text-3xl font-bold text-center mb-6 text-violet-500">
+          Iniciar Sesión
+        </h1>
 
-        <input
-          type="text"
-          placeholder="User"
-          value={username}
-          onChange={(e) => setUser(e.target.value)}
-          className="w-full mb-3 p-2 border rounded-md"
-        />
+        <div className="mb-4">
+          <label className="block font-medium text-gray-700 mb-1">Email</label>
+          <input
+            type="email"
+            name="email"
+            className="w-full p-3 border border-gray-300 rounded-lg text-black"
+            required
+          />
+        </div>
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPass(e.target.value)}
-          className="w-full mb-3 p-2 border rounded-md"
-        />
+        <div className="mb-6">
+          <label className="block font-medium text-gray-700 mb-1">
+            Contraseña
+          </label>
+          <input
+            type="password"
+            name="password"
+            className="w-full p-3 border border-gray-300 rounded-lg text-black"
+            required
+          />
+        </div>
 
-        {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
-
-        <button className="w-full bg-violet-500 hover:bg-white text-white p-2 rounded-md">
-          Login
+        <button
+          type="submit"
+          className="w-full py-3 bg-violet-500 hover:bg-violet-600 text-white rounded-lg font-semibold transition"
+        >
+          Entrar
         </button>
       </form>
     </div>

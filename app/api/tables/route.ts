@@ -1,45 +1,45 @@
+// app/api/tables/route.ts
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { PrismaClient, TableStatus } from "@prisma/client";
+import { requireAuth } from "@/lib/auth";
 
-export async function GET() {
+const prisma = new PrismaClient();
+
+export async function GET(req: Request) {
+  const auth = requireAuth(req);
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   try {
-    const tables = await prisma.tables.findMany({
-      include: {
-        orders: true,
-        table_groups: true,
-      },
+    const tables = await prisma.restaurantTable.findMany({
+      include: { group: true },
+      orderBy: { id: "asc" },
     });
 
     return NextResponse.json(tables);
-  } catch (err) {
-    console.error("GET /api/tables error", err);
-    return NextResponse.json({ error: "Failed to fetch tables" }, { status: 500 });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 400 });
   }
 }
 
 export async function POST(req: Request) {
+  const auth = requireAuth(req);
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { name, capacity, status, groupId } = await req.json();
+
   try {
-    const body = await req.json();
-    const { table_number, capacity } = body;
-
-    if (!table_number || !capacity) {
-      return NextResponse.json(
-        { error: "table_number and capacity required" },
-        { status: 400 }
-      );
-    }
-
-    const table = await prisma.tables.create({
+    const created = await prisma.restaurantTable.create({
       data: {
-        table_number,
-        capacity,
-        status: "free",
+        name,
+        capacity: Number(capacity),
+        status: status as TableStatus,
+        groupId: groupId || null,
       },
+      include: { group: true },
     });
 
-    return NextResponse.json(table, { status: 201 });
-  } catch (err) {
-    console.error("POST /api/tables error", err);
-    return NextResponse.json({ error: "Failed to create table" }, { status: 500 });
+    return NextResponse.json(created);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 400 });
   }
 }
