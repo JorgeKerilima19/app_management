@@ -1,11 +1,10 @@
-// src/lib/auth.ts
+// lib/auth.ts
 import jwt from "jsonwebtoken";
-import { NextResponse } from "next/server";
 import type { SerializeOptions } from "cookie";
 import cookie from "cookie";
 
 const JWT_SECRET = process.env.JWT_SECRET || "replace-this-secret";
-const JWT_EXPIRATION_SECONDS = 60 * 60 * 24 * 7; // 7 days
+const JWT_EXPIRATION_SECONDS = 60 * 60 * 24 * 7;
 
 export function signToken(payload: Record<string, any>) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRATION_SECONDS });
@@ -14,25 +13,24 @@ export function signToken(payload: Record<string, any>) {
 export function verifyToken(token: string) {
   try {
     return jwt.verify(token, JWT_SECRET);
-  } catch (e) {
+  } catch {
     return null;
   }
 }
 
 export function createAuthCookie(token: string) {
-  const cookieOptions: SerializeOptions = {
+  const opts: SerializeOptions = {
     httpOnly: true,
     maxAge: JWT_EXPIRATION_SECONDS,
     path: "/",
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
   };
-
-  return cookie.serialize("token", token, cookieOptions);
+  return cookie.serialize("auth_token", token, opts); // ← KEY CHANGE
 }
 
 export function clearAuthCookie() {
-  return cookie.serialize("token", "", {
+  return cookie.serialize("auth_token", "", { // ← KEY CHANGE
     httpOnly: true,
     maxAge: 0,
     path: "/",
@@ -44,7 +42,6 @@ export function clearAuthCookie() {
 export function requireAuth(req: Request) {
   const cookieHeader = req.headers.get("cookie") || "";
   const parsed = cookie.parse(cookieHeader);
-  const token = parsed.token;
-  if (!token) return null;
-  return verifyToken(token);
+  const token = parsed["auth_token"]; // ← MATCH NAME
+  return token ? verifyToken(token) : null;
 }

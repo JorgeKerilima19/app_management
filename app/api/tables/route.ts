@@ -1,9 +1,8 @@
 // app/api/tables/route.ts
 import { NextResponse } from "next/server";
-import { PrismaClient, TableStatus } from "@prisma/client";
+import { TableStatus } from "@prisma/client";
 import { requireAuth } from "@/lib/auth";
-
-const prisma = new PrismaClient();
+import prisma from "@/lib/prisma";
 
 export async function GET(req: Request) {
   const auth = requireAuth(req);
@@ -14,10 +13,9 @@ export async function GET(req: Request) {
       include: { group: true },
       orderBy: { id: "asc" },
     });
-
     return NextResponse.json(tables);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 400 });
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
@@ -37,7 +35,6 @@ export async function POST(req: Request) {
       },
       include: { group: true },
     });
-
     return NextResponse.json(created);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 400 });

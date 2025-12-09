@@ -1,6 +1,5 @@
-// src/app/api/auth/logout/route.ts
 import { NextResponse } from "next/server";
-import { clearAuthCookie } from "../../../..//lib/auth";
+import { clearAuthCookie } from "../../../../lib/auth";
 
 export async function POST() {
   const cookieHeader = clearAuthCookie();

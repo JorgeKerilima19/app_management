@@ -1,17 +1,28 @@
 // app/api/tables/[id]/route.ts
 import { NextResponse } from "next/server";
-import { PrismaClient, TableStatus } from "@prisma/client";
+import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 
-const prisma = new PrismaClient();
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  // ✅ Unwrap params first
+  const { id } = await params;
 
-export async function GET(req: Request, { params }: any) {
   const auth = requireAuth(req);
-  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const tableId = Number(id);
+  if (isNaN(tableId)) {
+    return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+  }
 
   try {
     const table = await prisma.restaurantTable.findUnique({
-      where: { id: Number(params.id) },
+      where: { id: tableId },
       include: { group: true, orders: true },
     });
 
@@ -21,45 +32,7 @@ export async function GET(req: Request, { params }: any) {
 
     return NextResponse.json(table);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 400 });
-  }
-}
-
-export async function PUT(req: Request, { params }: any) {
-  const auth = requireAuth(req);
-  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const body = await req.json();
-
-  try {
-    const updated = await prisma.restaurantTable.update({
-      where: { id: Number(params.id) },
-      data: {
-        name: body.name,
-        capacity: body.capacity ? Number(body.capacity) : undefined,
-        status: body.status as TableStatus,
-        groupId: body.groupId ?? undefined,
-      },
-      include: { group: true },
-    });
-
-    return NextResponse.json(updated);
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 400 });
-  }
-}
-
-export async function DELETE(req: Request, { params }: any) {
-  const auth = requireAuth(req);
-  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  try {
-    await prisma.restaurantTable.delete({
-      where: { id: Number(params.id) },
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 400 });
+    console.error("API Table Error:", err);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

@@ -1,23 +1,23 @@
+// app/middleware.ts
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 
-export async function middleware(req: any) {
-  const c = await cookies();
-  const token = c.get("auth_token");
+export function middleware(request: any) {
+  const token = request.cookies.get("auth_token")?.value; // ← correct!
+  const path = request.nextUrl.pathname;
 
-  const isAuthPage = req.nextUrl.pathname.startsWith("/auth");
+  const isAuthPage = path.startsWith("/login");
 
   if (!token && !isAuthPage) {
-    return NextResponse.redirect(new URL("/auth/login", req.url));
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   if (token && isAuthPage) {
-    return NextResponse.redirect(new URL("/", req.url));
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/((?!_next|api|static|favicon.ico).*)"],
+  matcher: ["/((?!api|_next|static|.*\\.(?:jpg|jpeg|png|gif|svg|ico)$).*)"],
 };

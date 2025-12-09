@@ -15,12 +15,20 @@ export async function POST(req: Request) {
     const body: Body = await req.json();
 
     if (!body.email || !body.password || !body.name) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
     }
 
-    const existing = await prisma.user.findUnique({ where: { email: body.email } });
+    const existing = await prisma.user.findUnique({
+      where: { email: body.email },
+    });
     if (existing) {
-      return NextResponse.json({ error: "User already exists" }, { status: 409 });
+      return NextResponse.json(
+        { error: "User already exists" },
+        { status: 409 }
+      );
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -47,6 +55,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ user }, { status: 201 });
   } catch (err) {
     console.error("REGISTER ERROR", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

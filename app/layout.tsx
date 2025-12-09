@@ -1,13 +1,8 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
+// app/layout.tsx
+import { Inter } from 'next/font/google';
+import './globals.css';
 
-const inter = Inter({ subsets: ["latin"] });
-
-export const metadata: Metadata = {
-  title: "Login",
-  description: "Login page with dark mode",
-};
+const inter = Inter({ subsets: ['latin'] });
 
 export default function RootLayout({
   children,
@@ -16,7 +11,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+      <body className={inter.className}>
         {children}
       </body>
     </html>

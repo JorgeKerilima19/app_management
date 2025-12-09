@@ -3,9 +3,8 @@ import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { requireAuth } from "@/lib/auth";
 
-const prisma = new PrismaClient();
+import prisma from "@/lib/prisma";
 
-// GET /api/table-groups/:id
 export async function GET(req: Request, { params }: any) {
   const auth = requireAuth(req);
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

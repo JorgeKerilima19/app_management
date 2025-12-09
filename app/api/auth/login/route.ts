@@ -1,4 +1,3 @@
-// src/app/api/auth/login/route.ts
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
@@ -13,22 +12,34 @@ export async function POST(req: Request) {
   try {
     const body: Body = await req.json();
     if (!body.email || !body.password) {
-      return NextResponse.json({ error: "Missing credentials" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing credentials" },
+        { status: 400 }
+      );
     }
 
     const user = await prisma.user.findUnique({ where: { email: body.email } });
     if (!user) {
-      // do not reveal which part is wrong for security
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Invalid credentials" },
+        { status: 401 }
+      );
     }
 
     const isValid = await bcrypt.compare(body.password, user.password);
     if (!isValid) {
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Invalid credentials" },
+        { status: 401 }
+      );
     }
 
-    // Create JWT payload: minimal info, avoid sensitive data
-    const token = signToken({ sub: user.id, email: user.email, role: user.role });
+    const token = signToken({
+      sub: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    });
 
     const cookieHeader = createAuthCookie(token);
 
@@ -39,7 +50,12 @@ export async function POST(req: Request) {
       role: user.role,
       createdAt: user.createdAt,
     };
-
+    console.log("Input password:", body.password);
+    console.log("Stored hash in DB:", user.password);
+    console.log(
+      "Comparison result:",
+      await bcrypt.compare(body.password, user.password)
+    );
     return new NextResponse(JSON.stringify({ user: safeUser }), {
       status: 200,
       headers: {
@@ -49,6 +65,9 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     console.error("LOGIN ERROR", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
