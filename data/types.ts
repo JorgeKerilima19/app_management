@@ -61,11 +61,11 @@ export interface InventoryWastage {
   adjusted_by: number;
   created_at: string | null;
 }
-export interface Staff {
-  id: number;
-  name: string;
-  role: string;
-  role_id?: number | null;
+export interface User {
+  sub: number | null;
+  name: string | null;
+  role: string | null;
+  email: string | null;
   created_at: string | null;
 }
 export interface StaffShift {

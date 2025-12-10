@@ -1,60 +1,95 @@
 // app/api/orders/[id]/items/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireAuth } from "@/lib/auth";
 
-type Params = { params: { id: string } };
+// POST: add item to order
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = requireAuth(req);
+  if (!auth)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-export async function POST(req: Request, { params }: Params) {
+  const { id } = await params;
+  const orderId = Number(id);
+  if (isNaN(orderId)) {
+    return NextResponse.json({ error: "Invalid order ID" }, { status: 400 });
+  }
+
+  const { menuItemId, quantity, notes, spotNumbers } = await req.json();
+
+  if (!menuItemId || !quantity) {
+    return NextResponse.json(
+      { error: "menuItemId and quantity required" },
+      { status: 400 }
+    );
+  }
+
   try {
-    const orderId = Number(params.id);
-    const body = await req.json();
-    const items = Array.isArray(body) ? body : [body];
-
-    const created = [];
-    for (const it of items) {
-      const menu = await prisma.menu_items.findUnique({
-        where: { id: it.menuItemId },
-      });
-      if (!menu) throw new Error(`Menu item ${it.menuItemId} not found`);
-
-      const ci = await prisma.order_items.create({
-        data: {
-          order_id: orderId,
-          menu_item_id: it.menuItemId,
-          quantity: it.quantity ?? 1,
-          unit_price: menu.price,
-          special_instructions: it.special_instructions ?? null,
-          share_id: it.share_id ?? null,
-          status: "queued",
-        },
-      });
-      created.push(ci);
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!order || (order.status !== "OPEN" && order.status !== "CLOSED")) {
+      return NextResponse.json(
+        { error: "Invalid order state" },
+        { status: 400 }
+      );
     }
 
-    const sumAgg = await prisma.order_items.aggregate({
-      where: { order_id: orderId },
-      _sum: { unit_price: true },
+    // ✅ Allow adding items even if CLOSED (follow-up items)
+    const item = await prisma.orderItem.create({
+      data: {
+        orderId,
+        menuItemId,
+        quantity,
+        notes: notes || null,
+        status: "PENDING",
+        spots: {
+          create: (spotNumbers || []).map((spot: number) => ({
+            seatNumber: spot,
+          })),
+        },
+      },
+      include: { menuItem: true, spots: true },
     });
 
-    const allItems = await prisma.order_items.findMany({
-      where: { order_id: orderId },
-    });
-    const total = allItems.reduce(
-      (acc: any, r: any) => acc + Number(r.unit_price) * r.quantity,
-      0
-    );
-
-    await prisma.orders.update({
-      where: { id: orderId },
-      data: { total_amount: total },
-    });
-
-    return NextResponse.json(created, { status: 201 });
+    return NextResponse.json(item);
   } catch (err: any) {
-    console.error("POST /api/orders/[id]/items error", err);
-    return NextResponse.json(
-      { error: err.message ?? "Failed to add items" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+// DELETE: remove item (only if order is OPEN)
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const url = new URL(req.url);
+  const itemId = url.searchParams.get("itemId");
+  if (!itemId) {
+    return NextResponse.json({ error: "itemId required" }, { status: 400 });
+  }
+
+  const auth = requireAuth(req);
+  if (!auth)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  const orderId = Number(id);
+  const orderItemId = Number(itemId);
+
+  try {
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!order || order.status !== "OPEN") {
+      return NextResponse.json(
+        { error: "Can only remove items from OPEN orders" },
+        { status: 400 }
+      );
+    }
+
+    await prisma.orderItem.delete({ where: { id: orderItemId } });
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

@@ -1,11 +1,18 @@
-import "./globals.css";
-import { AuthProvider } from "./providers";
+// app/layout.tsx
+import { Inter } from 'next/font/google';
+import './globals.css';
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+const inter = Inter({ subsets: ['latin'] });
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
-      <body>
-        <AuthProvider>{children}</AuthProvider>
+      <body className={inter.className}>
+        {children}
       </body>
     </html>
   );

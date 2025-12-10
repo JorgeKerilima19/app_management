@@ -1,0 +1,14 @@
+import { NextResponse } from "next/server";
+import { clearAuthCookie } from "../../../../lib/auth";
+
+export async function POST() {
+  const cookieHeader = clearAuthCookie();
+
+  return new NextResponse(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: {
+      "Set-Cookie": cookieHeader,
+      "Content-Type": "application/json",
+    },
+  });
+}

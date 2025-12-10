@@ -6,203 +6,230 @@ datasource db {
   provider = "postgresql"
 }
 
-model daily_summaries {
-  id            Int       @id @default(autoincrement())
-  summary_date  DateTime  @unique @db.Date
-  total_revenue Decimal   @db.Decimal(10, 2)
-  total_cash    Decimal   @default(0) @db.Decimal(10, 2)
-  total_yape    Decimal   @default(0) @db.Decimal(10, 2)
-  total_orders  Int
-  total_covers  Int?
-  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+enum UserRole {
+  ADMIN
+  WAITER
+  CASHIER
+  MANAGER
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model inventory_adjustments {
-  id                Int             @id @default(autoincrement())
-  inventory_item_id Int
-  amount            Decimal         @db.Decimal(10, 3)
-  reason            String
-  notes             String?
-  adjusted_by       Int
-  created_at        DateTime?       @default(now()) @db.Timestamptz(6)
-  staff             staff           @relation(fields: [adjusted_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  inventory_items   inventory_items @relation(fields: [inventory_item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  DIRTY
+  RESERVED
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model inventory_items {
-  id                    Int                     @id @default(autoincrement())
-  name                  String                  @unique
-  unit_type             String
-  current_stock         Decimal                 @default(0) @db.Decimal(10, 3)
-  low_stock_threshold   Decimal?                @db.Decimal(10, 3)
-  category              String?
-  created_at            DateTime?               @default(now()) @db.Timestamptz(6)
-  inventory_adjustments inventory_adjustments[]
-  menu_items            menu_items[]
+enum MenuCategory {
+  MAIN
+  BEVERAGE
+  DESSERT
+  STARTER
+  OTHER
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model menu_items {
-  id                Int              @id @default(autoincrement())
-  name              String
-  description       String?
-  price             Decimal          @db.Decimal(10, 2)
-  category          String
-  is_beverage       Boolean          @default(false)
-  active            Boolean          @default(true)
-  created_at        DateTime?        @default(now()) @db.Timestamptz(6)
-  inventory_item_id Int?
-  station           String?
-  station_id        Int?
-  inventory_items   inventory_items? @relation(fields: [inventory_item_id], references: [id], onUpdate: NoAction)
-  stations          stations?        @relation(fields: [station_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  order_items       order_items[]
+enum MenuType {
+  FOOD
+  BEVERAGE
+  WATER
+  SPARKLING
+  OTHER
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model order_items {
-  id                   Int             @id @default(autoincrement())
-  order_id             Int
-  menu_item_id         Int
-  quantity             Int
-  unit_price           Decimal         @db.Decimal(10, 2)
-  special_instructions String?
-  share_id             Int?
-  status               String          @default("queued")
-  created_at           DateTime?       @default(now()) @db.Timestamptz(6)
-  discount_id          Int?
-  cancel_reason        String?
-  discounts            discounts?      @relation(fields: [discount_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  menu_items           menu_items      @relation(fields: [menu_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  orders               orders          @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  order_tickets        order_tickets[]
+enum OrderStatus {
+  OPEN
+  CLOSED
+  PAID
+  CANCELLED
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model orders {
-  id             Int           @id @default(autoincrement())
-  status         String        @default("open")
-  total_amount   Decimal       @default(0) @db.Decimal(10, 2)
-  created_at     DateTime?     @default(now()) @db.Timestamptz(6)
-  closed_at      DateTime?     @db.Timestamptz(6)
-  paid_at        DateTime?     @db.Timestamptz(6)
-  table_group_id Int?
-  order_items    order_items[]
-  table_groups   table_groups? @relation(fields: [table_group_id], references: [id], onUpdate: NoAction)
-  payments       payments[]
-  tables         tables[]
+enum OrderItemStatus {
+  PENDING
+  SERVED
+  CANCELLED
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model payments {
-  id                  Int                 @id @default(autoincrement())
-  order_id            Int
-  amount              Decimal             @db.Decimal(10, 2)
-  method              String
-  share_id            Int?
-  yape_transaction_id String?
-  yape_sender_phone   String?
-  processed_by        Int
-  created_at          DateTime?           @default(now()) @db.Timestamptz(6)
-  payment_reversals   payment_reversals[]
-  orders              orders              @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  staff               staff               @relation(fields: [processed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+enum BillStatus {
+  PENDING
+  PAID
+  PARTIALLY_PAID
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model staff {
-  id                    Int                     @id @default(autoincrement())
-  name                  String
-  role                  String
-  created_at            DateTime?               @default(now()) @db.Timestamptz(6)
-  role_id               Int?
-  audit_logs            audit_logs[]
-  inventory_adjustments inventory_adjustments[]
-  payment_reversals     payment_reversals[]
-  payments              payments[]
-  roles                 roles?                  @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+enum PaymentMethod {
+  CASH
+  CARD
+  YAPE
+  PLIN
+  BANK_TRANSFER
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model tables {
-  id               Int           @id @default(autoincrement())
-  table_number     String        @unique
-  capacity         Int
-  status           String        @default("free")
-  current_order_id Int?
-  updated_at       DateTime?     @default(now()) @db.Timestamptz(6)
-  table_group_id   Int?
-  orders           orders?       @relation(fields: [current_order_id], references: [id], onUpdate: NoAction)
-  table_groups     table_groups? @relation(fields: [table_group_id], references: [id], onUpdate: NoAction)
-
-  @@index([status], map: "idx_tables_status")
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole @default(WAITER)
+  createdAt DateTime @default(now())
 }
 
-model audit_logs {
-  id         Int       @id @default(autoincrement())
-  staff_id   Int?
-  action     String
-  entity     String
-  entity_id  Int
-  old_value  Json?
-  new_value  Json?
-  created_at DateTime? @default(now()) @db.Timestamptz(6)
-  staff      staff?    @relation(fields: [staff_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+model RestaurantTable {
+  id        Int         @id @default(autoincrement())
+  name      String
+  capacity  Int
+  status    TableStatus @default(AVAILABLE)
+  createdAt DateTime    @default(now())
+
+  // reference to merged groups
+  groupId   Int?
+  group     TableGroup? @relation(fields: [groupId], references: [id])
+
+  orders    Order[]
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model discounts {
-  id            Int           @id @default(autoincrement())
+model TableGroup {
+  id        Int         @id @default(autoincrement())
+  createdAt DateTime     @default(now())
+
+  tables    RestaurantTable[]
+
+  orders    Order[]
+}
+
+//
+// ===== MENU =====
+//
+
+model MenuItem {
+  id         Int            @id @default(autoincrement())
+  name       String
+  category   MenuCategory
+  description String?
+  type       MenuType
+  price      Decimal        @db.Decimal(10,2)
+  isActive   Boolean        @default(true)
+
+  orderItems OrderItem[]
+  inventoryLinks MenuItemInventoryLink[]
+}
+
+//
+// ===== ORDERS =====
+//
+
+model Order {
+  id            Int          @id @default(autoincrement())
+  tableId       Int?
+  table         RestaurantTable? @relation(fields: [tableId], references: [id])
+
+  tableGroupId  Int?
+  tableGroup    TableGroup? @relation(fields: [tableGroupId], references: [id])
+
+  status        OrderStatus  @default(OPEN)
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  orderItems    OrderItem[]
+  bills         Bill[]
+}
+
+model OrderItem {
+  id           Int             @id @default(autoincrement())
+  orderId      Int
+  menuItemId   Int
+  quantity     Int
+  notes        String?
+  status       OrderItemStatus @default(PENDING)
+
+  createdAt    DateTime        @default(now())
+
+  order        Order           @relation(fields: [orderId], references: [id])
+  menuItem     MenuItem        @relation(fields: [menuItemId], references: [id])
+
+  // seat-based billing (more scalable than arrays)
+  spots        OrderItemSpot[]
+}
+
+model OrderItemSpot {
+  id         Int        @id @default(autoincrement())
+  orderItemId Int
+  seatNumber Int
+
+  orderItem OrderItem  @relation(fields: [orderItemId], references: [id])
+}
+
+//
+// ===== INVENTORY =====
+//
+
+model InventoryItem {
+  id            Int                       @id @default(autoincrement())
   name          String
-  discount_type String?
-  amount        Decimal?      @db.Decimal(10, 2)
-  active        Boolean?      @default(true)
-  order_items   order_items[]
+  category      String
+  unit          String
+  currentStock  Float
+  minStock      Float
+  isConsumable  Boolean                   @default(true)
+
+  menuItemLinks MenuItemInventoryLink[]
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model order_tickets {
-  id            Int         @id @default(autoincrement())
-  order_item_id Int
-  station       String
-  status        String      @default("queued")
-  created_at    DateTime?   @default(now()) @db.Timestamptz(6)
-  prepared_at   DateTime?   @db.Timestamptz(6)
-  served_at     DateTime?   @db.Timestamptz(6)
-  order_items   order_items @relation(fields: [order_item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+model MenuItemInventoryLink {
+  id              Int           @id @default(autoincrement())
+  menuItemId      Int
+  inventoryItemId Int
+  quantityUsed    Float
+
+  menuItem        MenuItem      @relation(fields: [menuItemId], references: [id])
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id])
 }
 
-model payment_reversals {
-  id         Int       @id @default(autoincrement())
-  payment_id Int?
-  reason     String
-  staff_id   Int?
-  created_at DateTime? @default(now()) @db.Timestamptz(6)
-  payments   payments? @relation(fields: [payment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  staff      staff?    @relation(fields: [staff_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+//
+// ===== BILLING =====
+//
+
+model Bill {
+  id        Int         @id @default(autoincrement())
+  orderId   Int
+  total     Decimal     @db.Decimal(10,2)
+  status    BillStatus  @default(PENDING)
+  createdAt DateTime    @default(now())
+
+  payments  Payment[]
+  splits    BillSplit[]
+  order     Order       @relation(fields: [orderId], references: [id])
 }
 
-model roles {
-  id              Int      @id @default(autoincrement())
-  name            String   @unique
-  can_take_orders Boolean? @default(false)
-  can_pay         Boolean? @default(false)
-  can_admin       Boolean? @default(false)
-  staff           staff[]
+model BillSplit {
+  id         Int         @id @default(autoincrement())
+  billId     Int
+  seatNumber Int
+  amount     Decimal     @db.Decimal(10,2)
+  isPaid     Boolean     @default(false)
+
+  bill       Bill        @relation(fields: [billId], references: [id])
 }
 
-model stations {
-  id         Int          @id @default(autoincrement())
-  name       String       @unique
-  menu_items menu_items[]
+model Payment {
+  id        Int             @id @default(autoincrement())
+  billId    Int
+  amount    Decimal         @db.Decimal(10,2)
+  method    PaymentMethod
+  reference String?
+  paidAt    DateTime        @default(now())
+
+  bill      Bill            @relation(fields: [billId], references: [id])
 }
 
-model table_groups {
-  id         Int       @id @default(autoincrement())
-  created_at DateTime? @default(now()) @db.Timestamptz(6)
-  closed_at  DateTime? @db.Timestamptz(6)
-  orders     orders[]
-  tables     tables[]
+//
+// ===== DAILY SUMMARY (analytics / caching) =====
+//
+
+model DailySummary {
+  id            Int       @id @default(autoincrement())
+  date          DateTime  @unique @db.Date
+  totalSales    Decimal   @db.Decimal(12,2)
+  itemsSold     Json?
+  lowStockItems Json?
+  generatedAt   DateTime  @default(now())
 }

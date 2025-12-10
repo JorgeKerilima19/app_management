@@ -1,45 +1,37 @@
+// app/api/tables/[id]/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireAuth } from "@/lib/auth";
 
-type Params = { params: { id: string } };
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
 
-export async function GET(_req: Request, { params }: Params) {
+  const auth = requireAuth(req);
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const tableId = Number(id);
+  if (isNaN(tableId)) {
+    return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+  }
+
   try {
-    const id = Number(params.id);
-    const table = await prisma.tables.findUnique({
-      where: { id },
-      include: { table_groups: true, orders: true }
+    const table = await prisma.restaurantTable.findUnique({
+      where: { id: tableId },
+      include: { group: true, orders: true },
     });
-    if (!table) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    if (!table) {
+      return NextResponse.json({ error: "Table not found" }, { status: 404 });
+    }
+
     return NextResponse.json(table);
-  } catch (err) {
-    console.error("GET /api/tables/[id] error", err);
-    return NextResponse.json({ error: "Failed to fetch table" }, { status: 500 });
-  }
-}
-
-export async function PUT(req: Request, { params }: Params) {
-  try {
-    const id = Number(params.id);
-    const body = await req.json();
-    const updated = await prisma.tables.update({
-      where: { id },
-      data: body
-    });
-    return NextResponse.json(updated);
-  } catch (err) {
-    console.error("PUT /api/tables/[id] error", err);
-    return NextResponse.json({ error: "Failed to update table" }, { status: 500 });
-  }
-}
-
-export async function DELETE(_req: Request, { params }: Params) {
-  try {
-    const id = Number(params.id);
-    await prisma.tables.delete({ where: { id } });
-    return NextResponse.json({ ok: true });
-  } catch (err) {
-    console.error("DELETE /api/tables/[id] error", err);
-    return NextResponse.json({ error: "Failed to delete table" }, { status: 500 });
+  } catch (err: any) {
+    console.error("API Table Error:", err);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
