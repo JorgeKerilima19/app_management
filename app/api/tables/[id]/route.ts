@@ -7,7 +7,6 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // ✅ Unwrap params first
   const { id } = await params;
 
   const auth = requireAuth(req);

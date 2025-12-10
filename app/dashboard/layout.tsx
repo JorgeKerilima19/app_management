@@ -22,7 +22,7 @@ export default async function DashboardLayout({
     { name: 'Orders', href: '/dashboard/orders' },
     { name: 'Bills', href: '/dashboard/bills' },
     { name: 'Inventory', href: '/dashboard/inventory' },
-    { name: 'Settings', href: '/dashboard/settings' },
+    { name: 'Cashier', href: '/dashboard/cashier' },
   ];
 
   return (

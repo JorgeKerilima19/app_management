@@ -1,8 +1,11 @@
-// app/api/tables/[id]/orders/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireAuth } from "@/lib/auth";
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
   const tableId = Number(params.id);
   if (isNaN(tableId)) {
     return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
@@ -21,18 +24,34 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     data: { tableId, status: "OPEN" },
   });
 
-  return NextResponse.json(order);
+  return NextResponse.redirect(
+    new URL(`/dashboard/tables/${tableId}`, req.url)
+  );
 }
 
-// Optional: GET all orders for table (used above)
-export async function GET(req: Request, { params }: { params: { id: string } }) {
-  const tableId = Number(params.id);
-  const orders = await prisma.order.findMany({
-    where: { tableId },
-    orderBy: { createdAt: "desc" },
-    include: {
-      orderItems: { include: { menuItem: true } }
-    }
-  });
-  return NextResponse.json(orders);
+export async function GET(req: Request) {
+  const auth = requireAuth(req);
+  if (!auth)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { searchParams } = new URL(req.url);
+  const tableId = searchParams.get("tableId");
+  const status = searchParams.get("status");
+
+  const where: any = {};
+  if (tableId) where.tableId = Number(tableId);
+  if (status) where.status = status;
+
+  try {
+    const orders = await prisma.order.findMany({
+      where,
+      include: {
+        table: true,
+        orderItems: { include: { menuItem: true } },
+      },
+    });
+    return NextResponse.json(orders);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }
