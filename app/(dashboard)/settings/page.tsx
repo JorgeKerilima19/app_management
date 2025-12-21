@@ -2,9 +2,6 @@
 import Link from "next/link";
 
 export default async function SettingsPage() {
-  // ✅ No prisma import here — we'll fetch counts in sub-pages if needed
-  // For now, just static UI
-
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-bold text-violet-500">Settings</h1>
@@ -36,12 +33,17 @@ export default async function SettingsPage() {
           </Link>
         </div>
 
-        <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition opacity-50">
+        <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition">
           <h2 className="font-bold text-lg mb-2">Staff Management</h2>
           <p className="text-gray-600 text-sm mb-4">
             Add or remove staff members
           </p>
-          <span className="text-gray-400 text-sm">Coming soon</span>
+          <Link
+            href="/settings/staff"
+            className="text-violet-500 hover:text-violet-700 font-medium text-sm"
+          >
+            Configure →
+          </Link>
         </div>
       </div>
     </div>

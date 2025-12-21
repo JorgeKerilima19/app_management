@@ -1,7 +1,7 @@
 // app/(dashboard)/settings/menu/_components/forms.tsx
 "use client";
 
-import { deleteCategory, deleteMenuItem } from "../actions";
+import { deleteCategory } from "../actions";
 
 export function DeleteCategoryForm({ id }: { id: string }) {
   const handleDelete = (e: React.FormEvent) => {
@@ -16,26 +16,6 @@ export function DeleteCategoryForm({ id }: { id: string }) {
 
   return (
     <form action={deleteCategory} onSubmit={handleDelete}>
-      <input type="hidden" name="id" value={id} />
-      <button
-        type="submit"
-        className="text-red-500 hover:text-red-700 text-sm font-medium"
-      >
-        Delete
-      </button>
-    </form>
-  );
-}
-
-export function DeleteMenuItemForm({ id }: { id: string }) {
-  const handleDelete = (e: React.FormEvent) => {
-    if (!confirm("Delete this menu item? This cannot be undone.")) {
-      e.preventDefault();
-    }
-  };
-
-  return (
-    <form action={deleteMenuItem} onSubmit={handleDelete}>
       <input type="hidden" name="id" value={id} />
       <button
         type="submit"
