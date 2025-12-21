@@ -146,6 +146,17 @@ enum OrderStatus {
   CANCELLED
 }
 
+model InventoryItem {
+  id        String   @id @default(cuid())
+  name      String // e.g., "Tomatoes", "Beef", "Olive Oil"
+  quantity  Float // 10.5, 25, etc.
+  unit      String // "kg", "pcs", "L", "g", "bottle", etc.
+  category  String? // e.g., "Produce", "Dairy", "Meat" (optional)
+  notes     String? // e.g., "Organic", "Local vendor"
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
 // ✅ SIMPLIFIED ORDER ITEM WITH MODIFIERS
 model OrderItem {
   id           String   @id @default(cuid())
