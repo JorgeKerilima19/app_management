@@ -1,26 +1,26 @@
-// components/LogoutButton.tsx (client-only alternative)
-"use client";
+// components/LogoutButton.tsx
+'use client';
 
-import { useRouter } from "next/navigation";
+import { useFormStatus } from 'react-dom';
+import { logout } from '@/app/actions';
 
-export default function LogoutButton() {
-  const router = useRouter();
-
-  const handleLogout = async () => {
-    await fetch("/api/logout", {
-      method: "POST",
-      credentials: "same-origin",
-    });
-    router.push("/login");
-    router.refresh();
-  };
-
+function LogoutButtonInner() {
+  const { pending } = useFormStatus();
   return (
     <button
-      onClick={handleLogout}
-      className="w-full text-left py-2 px-4 text-sm text-gray-300 hover:text-white hover:bg-red-600 rounded"
+      type="submit"
+      className="w-full text-left py-2 px-3 text-sm text-gray-300 hover:text-white hover:bg-red-600 rounded transition"
+      disabled={pending}
     >
-      Logout
+      {pending ? 'Logging out...' : 'Logout'}
     </button>
+  );
+}
+
+export default function LogoutButton() {
+  return (
+    <form action={logout}>
+      <LogoutButtonInner />
+    </form>
   );
 }

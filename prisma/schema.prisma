@@ -11,24 +11,23 @@ datasource db {
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
-  password  String   // hashed
+  password  String
   name      String
   role      Role     @default(WAITER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Audit: who added this user
-  addedById String?
-  addedBy   User?    @relation("AddedBy", fields: [addedById], references: [id])
+  addedById  String?
+  addedBy    User?   @relation("UserAddedBy", fields: [addedById], references: [id])
+  addedUsers User[]  @relation("UserAddedBy") // ← fixed relation name
 
   // Relations
-  ordersOpened    Order[]  @relation("OrderOrderedBy")
-  checksOpened    Check[]  @relation("CheckOpenedBy")
-  checksClosed    Check[]  @relation("CheckClosedBy")
-  paymentsMade    Payment[]
-  voidRecords     VoidRecord[]
-
-  users User[] @relation("AddedBy")
+  ordersOpened Order[]      @relation("OrderOrderedBy")
+  checksOpened Check[]      @relation("CheckOpenedBy")
+  checksClosed Check[]      @relation("CheckClosedBy")
+  paymentsMade Payment[]
+  voidRecords  VoidRecord[]
 }
 
 enum Role {
@@ -43,17 +42,17 @@ enum Role {
 model Table {
   id           String      @id @default(cuid())
   number       Int
-  capacity     Int         // Enforce 4 or 6 in app
+  capacity     Int // Enforce 4 or 6 in app
   status       TableStatus @default(AVAILABLE)
   mergedIntoId String?
   mergedInto   Table?      @relation("MergedTable", fields: [mergedIntoId], references: [id])
   mergedTables Table[]     @relation("MergedTable")
 
   currentCheckId String?
-  currentCheck   Check?    @relation(fields: [currentCheckId], references: [id], onDelete: SetNull)
+  currentCheck   Check?  @relation(fields: [currentCheckId], references: [id], onDelete: SetNull)
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([number])
 }
@@ -67,51 +66,51 @@ enum TableStatus {
 
 // ===== MENU =====
 model Category {
-  id           String    @id @default(cuid())
+  id           String     @id @default(cuid())
   name         String
-  displayOrder Int       @default(0)
-  isActive     Boolean   @default(true)
+  displayOrder Int        @default(0)
+  isActive     Boolean    @default(true)
   items        MenuItem[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 }
 
 model MenuItem {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   name        String
   description String?
   price       Decimal
-  isAvailable Boolean  @default(true)
+  isAvailable Boolean     @default(true)
   prepTimeMin Int?
   categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category    Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   orderItems  OrderItem[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 }
 
 // ===== ORDERS & CHECKS =====
 model Check {
-  id          String      @id @default(cuid())
-  status      CheckStatus @default(OPEN)
-  tableIds    String      // JSON: ["tbl_1", "tbl_2"]
-  openedAt    DateTime    @default(now())
-  closedAt    DateTime?
-  subtotal    Decimal     @default(0)
-  tax         Decimal     @default(0)
-  discount    Decimal     @default(0)
-  total       Decimal     @default(0)
+  id       String      @id @default(cuid())
+  status   CheckStatus @default(OPEN)
+  tableIds String // JSON: ["tbl_1", "tbl_2"]
+  openedAt DateTime    @default(now())
+  closedAt DateTime?
+  subtotal Decimal     @default(0)
+  tax      Decimal     @default(0)
+  discount Decimal     @default(0)
+  total    Decimal     @default(0)
 
   openedById String
-  openedBy   User @relation("CheckOpenedBy", fields: [openedById], references: [id])
+  openedBy   User    @relation("CheckOpenedBy", fields: [openedById], references: [id])
   closedById String?
-  closedBy   User? @relation("CheckClosedBy", fields: [closedById], references: [id])
+  closedBy   User?   @relation("CheckClosedBy", fields: [closedById], references: [id])
 
-  orders     Order[]
-  payments   Payment[]
+  orders   Order[]
+  payments Payment[]
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   tables Table[]
 }
@@ -123,19 +122,19 @@ enum CheckStatus {
 }
 
 model Order {
-  id          String       @id @default(cuid())
-  status      OrderStatus  @default(PENDING)
+  id          String      @id @default(cuid())
+  status      OrderStatus @default(PENDING)
   checkId     String
-  check       Check        @relation(fields: [checkId], references: [id], onDelete: Cascade)
+  check       Check       @relation(fields: [checkId], references: [id], onDelete: Cascade)
   orderedById String
-  orderedBy   User         @relation("OrderOrderedBy", fields: [orderedById], references: [id])
+  orderedBy   User        @relation("OrderOrderedBy", fields: [orderedById], references: [id])
 
   sentToKitchenAt DateTime?
   completedAt     DateTime?
 
-  items       OrderItem[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  items     OrderItem[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 }
 
 enum OrderStatus {
@@ -155,28 +154,28 @@ model OrderItem {
   menuItemId   String
   menuItem     MenuItem @relation(fields: [menuItemId], references: [id])
   quantity     Int      @default(1)
-  notes        String?  // e.g., "no onions, extra cheese"
+  notes        String? // e.g., "no onions, extra cheese"
   priceAtOrder Decimal
 
   // ✅ Instead of complex relations: store selected modifiers as JSON
   // Example: [{ "name": "Spice", "option": "Hot", "price": 0.00 }, { "name": "Toppings", "option": "Bacon", "price": 1.50 }]
-  modifiers    Json?    // PostgreSQL JSONB → flexible, queryable, simple
+  modifiers Json? // PostgreSQL JSONB → flexible, queryable, simple
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 // ===== PAYMENTS =====
 model Payment {
-  id            String         @id @default(cuid())
+  id            String        @id @default(cuid())
   checkId       String
-  check         Check          @relation(fields: [checkId], references: [id], onDelete: Cascade)
+  check         Check         @relation(fields: [checkId], references: [id], onDelete: Cascade)
   amount        Decimal
   method        PaymentMethod
-  status        PaymentStatus  @default(COMPLETED)
+  status        PaymentStatus @default(COMPLETED)
   note          String?
   processedById String
-  processedBy   User           @relation(fields: [processedById], references: [id])
-  createdAt     DateTime       @default(now())
+  processedBy   User          @relation(fields: [processedById], references: [id])
+  createdAt     DateTime      @default(now())
 }
 
 enum PaymentMethod {
@@ -196,14 +195,14 @@ enum PaymentStatus {
 
 // ===== VOID / CANCEL LOG =====
 model VoidRecord {
-  id         String      @id @default(cuid())
+  id         String     @id @default(cuid())
   target     VoidTarget
-  targetId   String      // ID of order, orderItem, or check
-  reason     String      // simple string: "Wrong order", "Customer request"
+  targetId   String // ID of order, orderItem, or check
+  reason     String // simple string: "Wrong order", "Customer request"
   voidedById String
-  voidedBy   User        @relation(fields: [voidedById], references: [id])
+  voidedBy   User       @relation(fields: [voidedById], references: [id])
   note       String?
-  createdAt  DateTime    @default(now())
+  createdAt  DateTime   @default(now())
 }
 
 enum VoidTarget {

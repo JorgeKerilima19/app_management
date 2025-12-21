@@ -34,7 +34,11 @@ export async function login(
     return { success: false, message: "Invalid email or password" };
   }
 
-  (await cookies()).set("user_id", user.id, {
+  // ✅ Set session
+  (
+    await // ✅ Set session
+    cookies()
+  ).set("user_id", user.id, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     maxAge: 7 * 24 * 60 * 60,
@@ -42,10 +46,11 @@ export async function login(
     sameSite: "lax",
   });
 
-  // ✅ Success → redirect (but useFormState won't see this)
   redirect("/dashboard");
 
-  // Note: redirect() throws an error internally, so code below won't run
-  // But TypeScript needs a return — so we add this (it's never reached)
   return { success: true };
+}
+export async function logout() {
+  (await cookies()).delete("user_id");
+  redirect("/login");
 }

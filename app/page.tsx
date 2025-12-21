@@ -5,7 +5,6 @@ import { redirect } from 'next/navigation';
 
 export default async function HomePage() {
   const cookieStore = cookies();
-  console.log('Session cookie:', (await cookieStore).get('user_id')?.value);
   
   const user = await getCurrentUser();
   console.log('User:', user);

@@ -18,6 +18,7 @@ function SubmitButton() {
 }
 
 export default function LoginPage() {
+  // ✅ Initial state: { success: true } (no error)
   const initialState: LoginState = { success: true };
   const [state, formAction] = useFormState(login, initialState);
 
@@ -28,6 +29,7 @@ export default function LoginPage() {
           Login
         </h1>
 
+        {/* ✅ Now state.message is safe */}
         {state.message && (
           <p className="text-red-500 text-center">{state.message}</p>
         )}
