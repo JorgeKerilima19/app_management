@@ -76,44 +76,45 @@ export async function mergeTablesAction(formData: FormData) {
 export async function closeCheckAction(formData: FormData) {
   const checkId = formData.get("checkId") as string;
   const paymentMethod = formData.get("paymentMethod") as string;
-  const totalAmount =
-    parseFloat(formData.get("cashAmount") as string) +
-      parseFloat(formData.get("yapeAmount") as string) || 0;
+  const cashAmountStr = formData.get("cashAmount") as string;
+  const yapeAmountStr = formData.get("yapeAmount") as string;
 
-  // ✅ Only pass fields that exist in your Payment model
+  const cashAmount = Number(cashAmountStr);
+  const yapeAmount = Number(yapeAmountStr);
+  const totalAmount = cashAmount + yapeAmount;
+
+  // ✅ Save split amounts
   await prisma.payment.create({
     data: {
       checkId,
       method: paymentMethod as "CASH" | "MOBILE_PAY" | "MIXED",
       amount: totalAmount,
+      cashAmount: cashAmount || null, // ← Save if exists
+      mobilePayAmount: yapeAmount || null, // ← Save if exists
       status: "COMPLETED",
     },
   });
 
-  // ✅ PaymentSummary: use @@unique([date])
+  // Update PaymentSummary
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   await prisma.paymentSummary.upsert({
-    where: { date: today }, // ✅ Now works because of @@unique([date])
+    where: { date: today },
     update: {
-      cashTotal: {
-        increment: parseFloat(formData.get("cashAmount") as string) || 0,
-      },
-      yapeTotal: {
-        increment: parseFloat(formData.get("yapeAmount") as string) || 0,
-      },
+      cashTotal: { increment: cashAmount },
+      yapeTotal: { increment: yapeAmount },
       total: { increment: totalAmount },
     },
     create: {
       date: today,
-      cashTotal: parseFloat(formData.get("cashAmount") as string) || 0,
-      yapeTotal: parseFloat(formData.get("yapeAmount") as string) || 0,
+      cashTotal: cashAmount,
+      yapeTotal: yapeAmount,
       total: totalAmount,
     },
   });
 
-  // Close check and free tables (same as before)
+  // Close check and free tables
   await prisma.check.update({
     where: { id: checkId },
     data: { status: "CLOSED", closedAt: new Date() },
