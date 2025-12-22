@@ -1,8 +1,58 @@
-export default function BillingPage() {
-  return (
-    <div>
-      <h1 className="text-2xl font-bold text-violet-500">Billing</h1>
-      <p className="mt-2 text-gray-600">Check management (cashier view).</p>
-    </div>
-  );
+// app/(dashboard)/cashier/page.tsx
+import prisma from "@/lib/prisma";
+import { CashierClientWrapper } from "./CashierClientWrapper";
+
+function toNumber(value: any): number {
+  if (value == null) return 0;
+  if (typeof value === "number") return value;
+  return parseFloat(value.toString());
+}
+
+export default async function CashierPage() {
+  const tables = await prisma.table.findMany({
+    include: {
+      currentCheck: {
+        include: {
+          orders: {
+            include: {
+              items: {
+                include: { menuItem: true },
+              },
+            },
+          },
+        },
+      },
+    },
+    orderBy: { number: "asc" },
+  });
+
+  const serializedTables = tables.map((table) => {
+    if (!table.currentCheck) {
+      return { ...table, currentCheck: null };
+    }
+
+    return {
+      ...table,
+      currentCheck: {
+        ...table.currentCheck,
+        subtotal: toNumber(table.currentCheck.subtotal),
+        tax: toNumber(table.currentCheck.tax),
+        discount: toNumber(table.currentCheck.discount),
+        total: toNumber(table.currentCheck.total),
+        orders: table.currentCheck.orders.map((order) => ({
+          ...order,
+          items: order.items.map((item) => ({
+            ...item,
+            priceAtOrder: toNumber(item.priceAtOrder),
+            menuItem: {
+              ...item.menuItem,
+              price: toNumber(item.menuItem.price),
+            },
+          })),
+        })),
+      },
+    };
+  });
+
+  return <CashierClientWrapper tables={serializedTables} />;
 }

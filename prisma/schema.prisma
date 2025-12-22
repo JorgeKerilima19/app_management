@@ -177,24 +177,36 @@ model OrderItem {
 
 // ===== PAYMENTS =====
 model Payment {
-  id            String        @id @default(cuid())
-  checkId       String
-  check         Check         @relation(fields: [checkId], references: [id], onDelete: Cascade)
-  amount        Decimal
-  method        PaymentMethod
-  status        PaymentStatus @default(COMPLETED)
-  note          String?
-  processedById String
-  processedBy   User          @relation(fields: [processedById], references: [id])
-  createdAt     DateTime      @default(now())
+  id              String        @id @default(cuid())
+  checkId         String
+  check           Check         @relation(fields: [checkId], references: [id])
+  method          PaymentMethod
+  amount          Decimal
+  cashAmount      Decimal?
+  mobilePayAmount Decimal?
+  status          String        @default("COMPLETED")
+  createdAt       DateTime      @default(now())
+  user            User?         @relation(fields: [userId], references: [id])
+  userId          String?
 }
 
 enum PaymentMethod {
   CASH
-  CREDIT_CARD
-  DEBIT_CARD
   MOBILE_PAY
-  GIFT_CARD
+  MIXED
+}
+
+model PaymentSummary {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date
+  cashTotal Decimal  @default(0)
+  yapeTotal Decimal  @default(0)
+  total     Decimal
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([date])
+  @@index([date])
 }
 
 enum PaymentStatus {

@@ -146,7 +146,7 @@ async function updateCheckTotal(checkId: string) {
     return sum + priceNum * item.quantity;
   }, 0);
 
-  const tax = subtotal * 0.1;
+  const tax = subtotal * 0;
   const total = subtotal + tax;
 
   await prisma.check.update({
