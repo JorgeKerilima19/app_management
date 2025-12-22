@@ -5,6 +5,12 @@ import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
+function toNumber(value: any): number {
+  if (value == null) return 0;
+  if (typeof value === "number") return value;
+  return parseFloat(value.toString());
+}
+
 export async function openTableAction(formData: FormData) {
   const tableId = formData.get("tableId") as string;
   const user = await getCurrentUser();
@@ -128,29 +134,31 @@ export async function sendOrdersToKitchen(formData: FormData) {
   revalidatePath(`/tables/${tableId}`);
 }
 
+// ✅ FIXED: NO TAX — RAW TOTAL ONLY
 async function updateCheckTotal(checkId: string) {
   const items = await prisma.orderItem.findMany({
     where: {
       order: {
         checkId,
-        status: { in: ["PENDING", "SENT", "PREPARING", "READY", "COMPLETED"] },
+        status: { in: ["PENDING", "SENT", "READY", "COMPLETED"] },
       },
     },
   });
 
-  const subtotal = items.reduce((sum, item) => {
-    const priceNum =
-      typeof item.priceAtOrder === "object"
-        ? parseFloat(item.priceAtOrder.toString())
-        : item.priceAtOrder;
-    return sum + priceNum * item.quantity;
+  // ✅ RAW TOTAL = sum of (priceAtOrder * quantity)
+  const total = items.reduce((sum, item) => {
+    const price = toNumber(item.priceAtOrder);
+    return sum + price * item.quantity;
   }, 0);
 
-  const tax = subtotal * 0;
-  const total = subtotal + tax;
-
+  // ✅ Set tax=0, discount=0, total=raw sum
   await prisma.check.update({
     where: { id: checkId },
-    data: { subtotal, tax, total },
+    data: {
+      subtotal: total,
+      tax: 0,
+      discount: 0,
+      total: total,
+    },
   });
 }

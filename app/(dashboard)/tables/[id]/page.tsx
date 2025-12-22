@@ -8,19 +8,23 @@ import {
 } from "./actions";
 import { MenuFilterClient } from "./MenuFilterClient";
 
-function groupPendingItems(pendingOrders: any[]) {
+// ✅ Group ALL items (not just pending)
+function groupItemsByMenuItem(orders: any[]) {
   const grouped = new Map();
-  pendingOrders.flatMap((order) =>
+  orders.flatMap((order) =>
     order.items.forEach((item: any) => {
       const key = item.menuItemId;
       if (grouped.has(key)) {
         grouped.get(key).quantity += item.quantity;
-        grouped.get(key).ids.push(item.id);
+        grouped.get(key).itemIds.push(item.id);
+        grouped.get(key).isSent =
+          grouped.get(key).isSent || order.status !== "PENDING";
       } else {
         grouped.set(key, {
           ...item,
           quantity: item.quantity,
-          ids: [item.id],
+          itemIds: [item.id],
+          isSent: order.status !== "PENDING",
         });
       }
     })
@@ -150,13 +154,10 @@ export default async function TablePage({
     );
   }
 
-  const pendingOrders = serializedCheck.orders.filter(
-    (o: any) => o.status === "PENDING"
-  );
-  const sentOrders = serializedCheck.orders.filter(
-    (o: any) => o.status !== "PENDING"
-  );
-  const groupedPending = groupPendingItems(pendingOrders);
+  // ✅ Group ALL items
+  const groupedItems = groupItemsByMenuItem(serializedCheck.orders);
+  const pendingItems = groupedItems.filter((item) => !item.isSent);
+  const sentItems = groupedItems.filter((item) => item.isSent);
 
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-6">
@@ -167,44 +168,44 @@ export default async function TablePage({
         </span>
       </div>
 
-      {sentOrders.length > 0 && (
+      {/* SENT ITEMS */}
+      {sentItems.length > 0 && (
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 opacity-90 mb-8">
           <h2 className="text-lg font-semibold mb-3 text-gray-700">
             Sent to Kitchen
           </h2>
-          {sentOrders.flatMap((order: any) =>
-            order.items.map((item: any) => (
-              <div
-                key={item.id}
-                className="flex justify-between bg-white p-3 rounded mb-2 border"
-              >
-                <div>
-                  <p className="font-medium text-gray-800">
-                    {item.menuItem.name}
-                  </p>
-                  {item.notes && (
-                    <p className="text-xs text-gray-600">"{item.notes}"</p>
-                  )}
-                  <p className="text-xs text-gray-500">x{item.quantity}</p>
-                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded mt-1 inline-block">
-                    {order.status}
-                  </span>
-                </div>
-                <p className="font-bold text-gray-700">
-                  ${(item.priceAtOrder * item.quantity).toFixed(2)}
+          {sentItems.map((item) => (
+            <div
+              key={item.menuItemId}
+              className="flex justify-between bg-white p-3 rounded mb-2 border"
+            >
+              <div>
+                <p className="font-medium text-gray-800">
+                  {item.menuItem.name}
                 </p>
+                {item.notes && (
+                  <p className="text-xs text-gray-600">"{item.notes}"</p>
+                )}
+                <p className="text-xs text-gray-500">x{item.quantity}</p>
+                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded mt-1 inline-block">
+                  SENT
+                </span>
               </div>
-            ))
-          )}
+              <p className="font-bold text-gray-700">
+                ${(item.priceAtOrder * item.quantity).toFixed(2)}
+              </p>
+            </div>
+          ))}
         </div>
       )}
 
-      {groupedPending.length > 0 && (
+      {/* PENDING ITEMS */}
+      {pendingItems.length > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-4 mb-8">
           <h2 className="text-lg font-semibold mb-3 text-violet-600">
             Pending Order
           </h2>
-          {groupedPending.map((item: any) => (
+          {pendingItems.map((item) => (
             <div
               key={item.menuItemId}
               className="flex justify-between items-center bg-gray-50 p-3 rounded mb-2"
@@ -218,7 +219,11 @@ export default async function TablePage({
               </div>
               <form action={removeItemFromOrder}>
                 <input type="hidden" name="tableId" value={table.id} />
-                <input type="hidden" name="orderItemId" value={item.ids[0]} />
+                <input
+                  type="hidden"
+                  name="orderItemId"
+                  value={item.itemIds[0]}
+                />
                 <button
                   type="submit"
                   className="text-red-500 hover:text-red-700 text-sm"
