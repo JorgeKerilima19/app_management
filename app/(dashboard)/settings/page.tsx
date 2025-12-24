@@ -45,6 +45,32 @@ export default async function SettingsPage() {
             Configure →
           </Link>
         </div>
+
+        <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition">
+          <h2 className="font-bold text-lg mb-2">Sales Reports</h2>
+          <p className="text-gray-600 text-sm mb-4">
+            View daily, weekly, and monthly sales reports
+          </p>
+          <Link
+            href="/settings/reports"
+            className="text-violet-500 hover:text-violet-700 font-medium text-sm"
+          >
+            View Reports →
+          </Link>
+        </div>
+
+        <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition">
+          <h2 className="font-bold text-lg mb-2">Void Records</h2>
+          <p className="text-gray-600 text-sm mb-4">
+            View audit log of voided items and orders
+          </p>
+          <Link
+            href="/settings/void-records"
+            className="text-violet-500 hover:text-violet-700 font-medium text-sm"
+          >
+            View Logs →
+          </Link>
+        </div>
       </div>
     </div>
   );

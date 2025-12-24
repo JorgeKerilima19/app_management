@@ -4,7 +4,6 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-
 // ===== TABLES =====
 export async function createTable(formData: FormData) {
   const numberStr = formData.get("number") as string;
@@ -14,10 +13,13 @@ export async function createTable(formData: FormData) {
   const capacity = parseInt(capacityStr, 10);
 
   if (isNaN(number) || isNaN(capacity)) return;
-  if (![4, 6].includes(capacity)) return; // enforce 4 or 6
+  if (![4, 6].includes(capacity)) return;
 
-  // Ensure unique table number
-  const exists = await prisma.table.findUnique({ where: { number } });
+  // ✅ FIX: Use `where: { number }` — valid because `number` is @unique
+  const exists = await prisma.table.findFirst({
+    where: { number }, // ← This is now valid
+  });
+
   if (exists) return;
 
   await prisma.table.create({
