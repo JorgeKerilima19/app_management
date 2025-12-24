@@ -73,6 +73,64 @@ export async function mergeTablesAction(formData: FormData) {
 
   revalidatePath("/cashier");
 }
+
+export async function fetchTables() {
+  const tables = await prisma.table.findMany({
+    include: {
+      currentCheck: {
+        include: {
+          orders: {
+            include: {
+              items: {
+                include: {
+                  menuItem: {
+                    include: { category: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    orderBy: { number: "asc" },
+  });
+
+  function toNumber(value: any): number {
+    if (value == null) return 0;
+    if (typeof value === "number") return value;
+    return parseFloat(value.toString());
+  }
+
+  return tables.map((table) => {
+    if (!table.currentCheck) {
+      return { ...table, currentCheck: null };
+    }
+
+    return {
+      ...table,
+      currentCheck: {
+        ...table.currentCheck,
+        subtotal: toNumber(table.currentCheck.subtotal),
+        tax: toNumber(table.currentCheck.tax),
+        discount: toNumber(table.currentCheck.discount),
+        total: toNumber(table.currentCheck.total),
+        orders: table.currentCheck.orders.map((order) => ({
+          ...order,
+          items: order.items.map((item) => ({
+            ...item,
+            priceAtOrder: toNumber(item.priceAtOrder),
+            menuItem: {
+              ...item.menuItem,
+              price: toNumber(item.menuItem.price),
+            },
+          })),
+        })),
+      },
+    };
+  });
+}
+
 export async function closeCheckAction(formData: FormData) {
   const checkId = formData.get("checkId") as string;
   const paymentMethod = formData.get("paymentMethod") as string;
@@ -83,19 +141,17 @@ export async function closeCheckAction(formData: FormData) {
   const yapeAmount = Number(yapeAmountStr);
   const totalAmount = cashAmount + yapeAmount;
 
-  // ✅ Save split amounts
   await prisma.payment.create({
     data: {
       checkId,
       method: paymentMethod as "CASH" | "MOBILE_PAY" | "MIXED",
       amount: totalAmount,
-      cashAmount: cashAmount || null, // ← Save if exists
-      mobilePayAmount: yapeAmount || null, // ← Save if exists
+      cashAmount: cashAmount || null,
+      mobilePayAmount: yapeAmount || null,
       status: "COMPLETED",
     },
   });
 
-  // Update PaymentSummary
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -114,7 +170,6 @@ export async function closeCheckAction(formData: FormData) {
     },
   });
 
-  // Close check and free tables
   await prisma.check.update({
     where: { id: checkId },
     data: { status: "CLOSED", closedAt: new Date() },
@@ -133,7 +188,7 @@ export async function closeCheckAction(formData: FormData) {
     });
   }
 
-  revalidatePath("/cashier");
+  revalidatePath("/billing");
 }
 
 export async function openTableAction(formData: FormData) {
@@ -271,10 +326,7 @@ async function updateCheckTotal(checkId: string) {
   });
 
   const total = items.reduce((sum, item) => {
-    const price =
-      typeof item.priceAtOrder === "object"
-        ? parseFloat(item.priceAtOrder.toString())
-        : item.priceAtOrder;
+    const price = Number(item.priceAtOrder);
     return sum + price * item.quantity;
   }, 0);
 
@@ -287,4 +339,108 @@ async function updateCheckTotal(checkId: string) {
       total: total,
     },
   });
+}
+export async function voidOrderItem(formData: FormData) {
+  const orderItemId = formData.get("orderItemId") as string;
+  const voidQuantityStr = formData.get("voidQuantity") as string;
+  const reason = (formData.get("reason") as string)?.trim();
+
+  if (!reason || reason.length < 3) {
+    throw new Error("Reason is required (min 3 characters)");
+  }
+
+  const voidQuantity = parseInt(voidQuantityStr);
+  if (isNaN(voidQuantity) || voidQuantity <= 0) {
+    throw new Error("Invalid quantity");
+  }
+
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const item = await prisma.orderItem.findUnique({
+    where: { id: orderItemId },
+    include: { order: { include: { check: true } } },
+  });
+
+  if (!item) throw new Error("Item not found");
+  if (item.order.status === "COMPLETED" || item.order.status === "CANCELLED") {
+    throw new Error("Cannot void completed/cancelled items");
+  }
+
+  if (voidQuantity > item.quantity) {
+    throw new Error("Void quantity cannot exceed item quantity");
+  }
+
+  // ✅ Log void record
+  await prisma.voidRecord.create({
+    data: {
+      target: "ORDER_ITEM",
+      targetId: orderItemId,
+      reason,
+      voidedById: user.id,
+      note: `Voided ${voidQuantity} out of ${item.quantity}`,
+    },
+  });
+
+  if (voidQuantity === item.quantity) {
+    // Delete the entire item
+    await prisma.orderItem.delete({ where: { id: orderItemId } });
+  } else {
+    // Reduce quantity
+    await prisma.orderItem.update({
+      where: { id: orderItemId },
+      data: { quantity: item.quantity - voidQuantity },
+    });
+  }
+
+  // Recalculate total
+  await updateCheckTotal(item.order.checkId);
+  revalidatePath("/billing");
+}
+
+export async function voidOrder(formData: FormData) {
+  const checkId = formData.get("checkId") as string;
+  const reason = (formData.get("reason") as string)?.trim();
+
+  if (!reason || reason.length < 3) {
+    throw new Error("Reason is required (min 3 characters)");
+  }
+
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  // Find the check and its tables
+  const check = await prisma.check.findUnique({
+    where: { id: checkId },
+    select: { tableIds: true, status: true },
+  });
+
+  if (!check || check.status === "CLOSED" || check.status === "VOIDED") {
+    throw new Error("Check cannot be voided");
+  }
+
+  // ✅ Void the entire check
+  await prisma.voidRecord.create({
+    data: {
+      target: "CHECK",
+      targetId: checkId,
+      reason,
+      voidedById: user.id,
+    },
+  });
+
+  // ✅ Mark check as VOIDED
+  await prisma.check.update({
+    where: { id: checkId },
+    data: { status: "VOIDED", closedAt: new Date() },
+  });
+
+  // ✅ Free all tables
+  const tableIds = JSON.parse(check.tableIds);
+  await prisma.table.updateMany({
+    where: { id: { in: tableIds } },
+    data: { status: "AVAILABLE", currentCheckId: null },
+  });
+
+  revalidatePath("/billing");
 }

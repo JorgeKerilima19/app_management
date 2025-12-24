@@ -1,6 +1,6 @@
-// app/(dashboard)/cashier/page.tsx
+// app/(dashboard)/billing/page.tsx
 import prisma from "@/lib/prisma";
-import { CashierClientWrapper } from "./CashierClientWrapper";
+import { BillingClientWrapper } from "./BillingClientWrapper";
 
 function toNumber(value: any): number {
   if (value == null) return 0;
@@ -8,7 +8,7 @@ function toNumber(value: any): number {
   return parseFloat(value.toString());
 }
 
-export default async function CashierPage() {
+export default async function BillingPage() {
   const tables = await prisma.table.findMany({
     include: {
       currentCheck: {
@@ -16,7 +16,11 @@ export default async function CashierPage() {
           orders: {
             include: {
               items: {
-                include: { menuItem: true },
+                include: {
+                  menuItem: {
+                    include: { category: true },
+                  },
+                },
               },
             },
           },
@@ -54,5 +58,5 @@ export default async function CashierPage() {
     };
   });
 
-  return <CashierClientWrapper tables={serializedTables} />;
+  return <BillingClientWrapper tables={serializedTables} />;
 }

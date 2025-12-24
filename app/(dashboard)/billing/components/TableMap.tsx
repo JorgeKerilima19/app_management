@@ -1,4 +1,4 @@
-// app/(dashboard)/cashier/components/TableMap.tsx
+// app/(dashboard)/billing/components/TableMap.tsx
 "use client";
 
 import { useState } from "react";
@@ -21,7 +21,6 @@ export function TableMap({
       if (!firstTableId) {
         setFirstTableId(tableId);
       } else if (firstTableId !== tableId) {
-        // ✅ Confirmation before merge
         if (confirm("Merge selected tables? This cannot be undone.")) {
           const formData = new FormData();
           formData.set("tableId1", firstTableId);
@@ -71,6 +70,11 @@ export function TableMap({
       </button>
     );
   };
+
+  // ✅ Guard against tables being undefined (shouldn't happen, but safe)
+  if (!Array.isArray(tables)) {
+    return <div className="text-center py-8">Loading...</div>;
+  }
 
   return (
     <div className="max-w-6xl mx-auto">
