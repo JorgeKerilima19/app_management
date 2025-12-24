@@ -10,23 +10,23 @@ export default async function InventoryPage() {
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-violet-600">Inventory</h1>
+        <h1 className="text-2xl font-bold text-violet-600">Inventario</h1>
         <Link
           href="/inventory/edit-inventory"
           className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
         >
-          + Add Item
+          + Añadir Item
         </Link>
       </div>
 
       {items.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-gray-500">No inventory items yet.</p>
+          <p className="text-gray-500">Sin items en el inventario</p>
           <Link
             href="/inventory/edit-inventory"
             className="text-violet-600 hover:text-violet-800 mt-2 inline-block"
           >
-            Add your first item →
+            Añade tu primer producto →
           </Link>
         </div>
       ) : (
@@ -38,16 +38,16 @@ export default async function InventoryPage() {
                   Item
                 </th>
                 <th className="text-left p-3 font-medium text-gray-700">
-                  Quantity
+                  Cantidad
                 </th>
                 <th className="text-left p-3 font-medium text-gray-700">
-                  Category
+                  Categoria
                 </th>
                 <th className="text-left p-3 font-medium text-gray-700">
-                  Updated
+                  Actualiza el
                 </th>
                 <th className="text-right p-3 font-medium text-gray-700">
-                  Actions
+                  Acciones
                 </th>
               </tr>
             </thead>
@@ -85,7 +85,7 @@ export default async function InventoryPage() {
                       href={`/inventory/edit-inventory/${item.id}`}
                       className="text-violet-600 hover:text-violet-800 font-medium"
                     >
-                      Edit
+                      Editar
                     </Link>
                   </td>
                 </tr>

@@ -26,13 +26,11 @@ export default async function Navbar() {
               href="/dashboard"
               className="text-xl font-bold text-violet-600 hover:text-violet-800"
             >
-              🍽️ Restaurant App
+              🍽️ Tacuchi Restaurant
             </Link>
           </div>
 
-          {/* Nav + User */}
           <div className="flex items-center space-x-6">
-            {/* Desktop Navigation */}
             <div className="hidden md:flex space-x-4">
               {navItems.map((item) => (
                 <Link
@@ -45,7 +43,6 @@ export default async function Navbar() {
               ))}
             </div>
 
-            {/* User Info */}
             <div className="flex items-center space-x-3">
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-medium text-gray-900">{user.name}</p>

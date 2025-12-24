@@ -1,8 +1,8 @@
 // app/(dashboard)/settings/void-records/page.tsx
 import prisma from "@/lib/prisma";
 import { format } from "date-fns";
+import Link from "next/link";
 
-// ✅ Helper: Fetch details for a void record
 async function getVoidDetails(record: any) {
   try {
     if (record.target === "ORDER_ITEM") {
@@ -80,12 +80,20 @@ export default async function VoidRecordsPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-violet-500">Void Records</h1>
+        <h1 className="text-2xl font-bold text-violet-600">
+          Record de Cancelaciones
+        </h1>
+        <Link
+          href="/settings"
+          className="text-sm text-gray-500 hover:text-gray-700"
+        >
+          ← Volver a Ajustes
+        </Link>
       </div>
 
       {recordsWithDetails.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
-          <p className="text-gray-600">No void records found.</p>
+          <p className="text-gray-600">Sin record de cancelaciones</p>
         </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -94,19 +102,19 @@ export default async function VoidRecordsPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date & Time
+                    Fecha y Hora
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Staff
+                    Personal
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Type
+                    Tipo
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Details
+                    Detalles
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Reason
+                    Motivo
                   </th>
                 </tr>
               </thead>

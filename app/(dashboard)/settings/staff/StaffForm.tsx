@@ -38,7 +38,7 @@ export default function StaffForm() {
           <input
             type="text"
             name="name"
-            placeholder="Full Name"
+            placeholder="Nombre"
             className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
             required
           />
@@ -56,7 +56,7 @@ export default function StaffForm() {
           <input
             type="password"
             name="password"
-            placeholder="Password"
+            placeholder="Contraseña"
             className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
             required
             minLength={6}
@@ -68,17 +68,17 @@ export default function StaffForm() {
             className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
             required
           >
-            <option value="">Select Role</option>
-            <option value="WAITER">Waiter</option>
-            <option value="CHEF">Chef</option>
-            <option value="CASHIER">Cashier</option>
-            <option value="MANAGER">Manager</option>
+            <option value="">Selecciona el Rol</option>
+            <option value="MESERO">MESERO</option>
+            <option value="COCINERO">COCINERO</option>
+            <option value="CAJERO">CAJERO</option>
+            <option value="ADMIN">ADMIN</option>
           </select>
           <button
             type="submit"
             className="bg-violet-600 hover:bg-violet-700 text-white px-6 py-2.5 rounded-lg whitespace-nowrap font-medium transition"
           >
-            Add
+            Añadir
           </button>
         </div>
       </div>

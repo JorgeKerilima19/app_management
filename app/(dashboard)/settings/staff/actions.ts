@@ -19,7 +19,7 @@ export async function addStaffAction(formData: FormData) {
     return { error: "Password must be at least 6 characters" };
   }
 
-  const validRoles = ["WAITER", "CHEF", "CASHIER", "MANAGER"];
+  const validRoles = ["MESERO", "COCINERO", "CAJERO", "MANAGER"];
   if (!validRoles.includes(role)) {
     return { error: "Invalid role" };
   }

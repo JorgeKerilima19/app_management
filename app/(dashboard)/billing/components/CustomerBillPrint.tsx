@@ -36,7 +36,6 @@ export function CustomerBillPrint({
     return acc;
   }, {} as Record<string, typeof allItems>);
 
-  // ✅ Sort categories (put "Other" last)
   const sortedCategories = Object.keys(categorized).sort((a, b) => {
     if (a === "Other") return 1;
     if (b === "Other") return -1;

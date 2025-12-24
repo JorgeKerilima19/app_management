@@ -59,12 +59,12 @@ export function SplitPayment({
 
   return (
     <div className="mb-6">
-      <h3 className="font-medium mb-3">Split by Person</h3>
+      <h3 className="font-medium mb-3">Separar cuenta</h3>
 
       {unassignedItems.length > 0 && (
         <div className="mb-4 p-3 bg-yellow-50 rounded">
           <div className="font-bold text-sm mb-1">
-            Unassigned Items (${unassignedTotal.toFixed(2)})
+            Items Restantes (${unassignedTotal.toFixed(2)})
           </div>
           {unassignedItems.map((item) => (
             <div
@@ -92,7 +92,7 @@ export function SplitPayment({
                 : "border-gray-200"
             }`}
           >
-            <div className="font-bold mb-1">Person {idx + 1}</div>
+            <div className="font-bold mb-1">Persona {idx + 1}</div>
             <div className="space-y-1">
               {person.items.map((item) => (
                 <div key={item.id} className="text-sm bg-gray-100 p-1 rounded">

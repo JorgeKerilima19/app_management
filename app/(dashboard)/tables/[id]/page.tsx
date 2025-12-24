@@ -46,9 +46,9 @@ export default async function TablePage({
   if (!table) {
     return (
       <div className="p-8 text-center">
-        <p className="text-red-500">Table not found.</p>
+        <p className="text-red-500">Mesa no encontrada.</p>
         <Link href="/tables" className="text-violet-600 mt-4 inline-block">
-          ← Back to Tables
+          ← Regresar a Mesas
         </Link>
       </div>
     );
@@ -107,7 +107,7 @@ export default async function TablePage({
           </div>
           <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
             <p className="text-gray-600 mb-6 text-lg">
-              Open table when customers are seated.
+              Abre la mesa cuando el cliente esté listo a ordenar
             </p>
             <form action={openTableAction}>
               <input type="hidden" name="tableId" value={table.id} />
@@ -115,13 +115,13 @@ export default async function TablePage({
                 type="submit"
                 className="bg-violet-600 hover:bg-violet-700 text-white px-8 py-4 rounded-lg font-medium text-lg"
               >
-                Open Table
+                Abrir Mesa
               </button>
             </form>
           </div>
           <div className="mt-8 text-center">
             <Link href="/tables" className="text-gray-600 hover:text-gray-800">
-              ← Back to Tables
+              ← Regresar a Mesas
             </Link>
           </div>
         </div>
@@ -134,12 +134,13 @@ export default async function TablePage({
       <div className="max-w-6xl mx-auto p-4 md:p-6">
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
           <p className="text-yellow-800 text-lg">
-            Table is {table.status.toLowerCase()}. Please clean before reuse.
+            Mesa está {table.status.toLowerCase()}. Por favor limpiar antes de
+            reusar
           </p>
         </div>
         <div className="mt-8 text-center">
           <Link href="/tables" className="text-gray-600 hover:text-gray-800">
-            ← Back to Tables
+            ← Regresar a Mesas
           </Link>
         </div>
       </div>
@@ -150,7 +151,7 @@ export default async function TablePage({
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold">Table {table.number}</h1>
         <span className="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-          OCCUPIED
+          Ocupado
         </span>
       </div>
 
@@ -163,7 +164,7 @@ export default async function TablePage({
 
       <div className="mt-8 text-center">
         <Link href="/tables" className="text-gray-600 hover:text-gray-800">
-          ← Back to Tables
+          ← Regresar a mesas
         </Link>
       </div>
     </div>

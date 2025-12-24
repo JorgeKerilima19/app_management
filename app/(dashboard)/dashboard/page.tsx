@@ -126,7 +126,7 @@ export default async function DashboardPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Today's Dashboard</h1>
+        <h1 className="text-3xl font-bold text-gray-800">Resumen del día</h1>
         <div className="text-right">
           <div className="text-lg font-bold text-emerald-600">
             Yape: S/{yapeTotal.toFixed(2)}
@@ -141,7 +141,7 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Top Items */}
         <div className="bg-white p-6 rounded-xl shadow">
-          <h2 className="text-xl font-semibold mb-4">Top Selling Items</h2>
+          <h2 className="text-xl font-semibold mb-4">Items más vendidos hoy</h2>
           <ul className="space-y-2">
             {topItems.map((item, i) => (
               <li key={i} className="flex justify-between">
@@ -154,7 +154,7 @@ export default async function DashboardPage() {
 
         {/* Payment Methods */}
         <div className="bg-white p-6 rounded-xl shadow">
-          <h2 className="text-xl font-semibold mb-4">Payment Methods</h2>
+          <h2 className="text-xl font-semibold mb-4">Métodos de pago</h2>
           <ul className="space-y-2">
             {Object.entries(paymentPercentages).map(([method, pct]) => (
               <li key={method} className="flex justify-between">
@@ -172,19 +172,19 @@ export default async function DashboardPage() {
 
       {/* SALES LOG */}
       <div className="bg-white rounded-xl shadow overflow-hidden">
-        <h2 className="text-xl font-semibold p-6 pb-4">Sales Log</h2>
+        <h2 className="text-xl font-semibold p-6 pb-4">Resumen de Ventas</h2>
         {salesLog.length === 0 ? (
-          <p className="text-center py-8 text-gray-500">No sales yet today</p>
+          <p className="text-center py-8 text-gray-500">Sin ventas hoy</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="text-left p-4">Table</th>
+                  <th className="text-left p-4">Mesa</th>
                   <th className="text-left p-4">Items</th>
-                  <th className="text-right p-4">Amount</th>
-                  <th className="text-left p-4">Method</th>
-                  <th className="text-left p-4">Time</th>
+                  <th className="text-right p-4">Monto</th>
+                  <th className="text-left p-4">Método</th>
+                  <th className="text-left p-4">Hora</th>
                 </tr>
               </thead>
               <tbody>

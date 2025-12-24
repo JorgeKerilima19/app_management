@@ -6,7 +6,6 @@ import { closeCheckAction, voidOrderItem, voidOrder } from "../actions";
 import { SplitPayment } from "./SplitPayment";
 import { CustomerBillPrint } from "./CustomerBillPrint";
 
-// ✅ Void Item Modal
 function VoidItemModal({
   item,
   onConfirm,
@@ -34,17 +33,17 @@ function VoidItemModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-[#0000003a] bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded-lg w-96">
         <h3 className="font-bold text-lg mb-2">
-          Void Item: {item.menuItem.name}
+          Cancelar item: {item.menuItem.name}
         </h3>
         <p className="text-sm text-gray-600 mb-3">
-          Current quantity: {item.quantity}
+          Cantidad actual: {item.quantity}
         </p>
         {item.quantity > 1 && (
           <div className="mb-3">
-            <label className="block text-sm mb-1">How many to void?</label>
+            <label className="block text-sm mb-1">Cuantos a cancelar</label>
             <input
               type="number"
               min="1"
@@ -62,7 +61,7 @@ function VoidItemModal({
             />
           </div>
         )}
-        <label className="block text-sm mb-1">Reason (required):</label>
+        <label className="block text-sm mb-1">Motivo (obligatorio):</label>
         <textarea
           value={reason}
           onChange={(e) => {
@@ -81,14 +80,14 @@ function VoidItemModal({
             onClick={onCancel}
             className="flex-1 py-2 bg-gray-200 rounded"
           >
-            Cancel
+            Cancelar
           </button>
           <button
             type="submit"
             onClick={handleSubmit}
             className="flex-1 py-2 bg-red-600 text-white rounded"
           >
-            Void Item
+            Cancelar Item
           </button>
         </div>
       </div>
@@ -96,7 +95,6 @@ function VoidItemModal({
   );
 }
 
-// ✅ Void Order Modal
 function VoidOrderModal({
   tableNumber,
   onConfirm,
@@ -119,13 +117,13 @@ function VoidOrderModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-[#0000003a] bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded-lg w-96">
-        <h3 className="font-bold text-lg mb-2">Void Entire Order</h3>
+        <h3 className="font-bold text-lg mb-2">Cancelar todo el pedido</h3>
         <p className="text-sm text-gray-600 mb-3">
-          Table {tableNumber} will be freed. This cannot be undone.
+          Mesa {tableNumber} se liberará. Esto no se puede deshacer
         </p>
-        <label className="block text-sm mb-1">Reason (required):</label>
+        <label className="block text-sm mb-1">Motivo (Obligatorio):</label>
         <textarea
           value={reason}
           onChange={(e) => {
@@ -134,7 +132,7 @@ function VoidOrderModal({
           }}
           className="w-full p-2 border rounded mb-2"
           rows={3}
-          placeholder="e.g., Customer left without paying..."
+          placeholder="ejm., Eran invitados"
           autoFocus
         />
         {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
@@ -144,14 +142,14 @@ function VoidOrderModal({
             onClick={onCancel}
             className="flex-1 py-2 bg-gray-200 rounded"
           >
-            Cancel
+            Cancelar
           </button>
           <button
             type="submit"
             onClick={handleSubmit}
             className="flex-1 py-2 bg-red-700 text-white rounded"
           >
-            Void Order
+            Cancelar pedido
           </button>
         </div>
       </div>
@@ -200,7 +198,7 @@ export function BillingPanel({
   if (!selectedTableId || !selectedTable?.currentCheck) {
     return (
       <div className="w-96 bg-white shadow-lg p-6 text-center text-gray-500">
-        Select a table to bill
+        Selecciona la mesa a cobrar
       </div>
     );
   }
@@ -251,7 +249,7 @@ export function BillingPanel({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Bill - Table ${selectedTable.number}</title>
+          <title>Cuenta - Mesa ${selectedTable.number}</title>
           <style>
             body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
           </style>
@@ -316,7 +314,7 @@ export function BillingPanel({
 
       <div className="w-96 bg-white shadow-lg p-6 overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold">Table {selectedTable.number}</h2>
+          <h2 className="text-xl font-bold">Mesa {selectedTable.number}</h2>
           <button
             onClick={onDismiss}
             className="text-gray-500 hover:text-gray-700"
@@ -329,11 +327,11 @@ export function BillingPanel({
           onClick={handlePrint}
           className="w-full py-2 mb-4 bg-violet-600 text-white rounded font-medium hover:bg-violet-700"
         >
-          🖨️ Print Bill
+          🖨️ Imprimir cuenta
         </button>
 
         <div className="mb-6">
-          <h3 className="font-semibold mb-2">Order</h3>
+          <h3 className="font-semibold mb-2">Órden</h3>
           {groupedItems.map((group) => (
             <div key={group.name} className="mb-3">
               <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
@@ -358,7 +356,7 @@ export function BillingPanel({
                       onClick={() => setShowVoidItemModal(item)}
                       className="text-red-500 hover:text-red-700 text-xs"
                     >
-                      ❌ Void
+                      ❌ Cancelar
                     </button>
                   </div>
                 </div>
@@ -375,7 +373,7 @@ export function BillingPanel({
           onClick={() => setIsSplitMode(!isSplitMode)}
           className="w-full py-2 mb-6 bg-violet-100 text-violet-800 rounded font-medium"
         >
-          {isSplitMode ? "Close Split" : "Split Payment"}
+          {isSplitMode ? "Cerrar separación" : "Separar por pedido"}
         </button>
 
         {isSplitMode && (
@@ -387,7 +385,7 @@ export function BillingPanel({
         )}
 
         <div className="mb-4">
-          <label className="block font-medium mb-2">Payment Method</label>
+          <label className="block font-medium mb-2">Método de pago</label>
           <div className="space-y-2">
             {(["CASH", "MOBILE_PAY", "MIXED"] as const).map((method) => (
               <label key={method} className="flex items-center">
@@ -408,7 +406,7 @@ export function BillingPanel({
 
         {(paymentMethod === "CASH" || paymentMethod === "MIXED") && (
           <div className="mb-3">
-            <label className="block text-sm mb-1">Cash Amount</label>
+            <label className="block text-sm mb-1">Monto Cash</label>
             <input
               type="number"
               value={cashAmount}
@@ -421,7 +419,7 @@ export function BillingPanel({
 
         {(paymentMethod === "MOBILE_PAY" || paymentMethod === "MIXED") && (
           <div className="mb-6">
-            <label className="block text-sm mb-1">Yape Amount</label>
+            <label className="block text-sm mb-1">Monto Yape</label>
             <input
               type="number"
               value={yapeAmount}
@@ -441,7 +439,7 @@ export function BillingPanel({
               : "bg-emerald-600 text-white hover:bg-emerald-700"
           }`}
         >
-          Confirm Payment
+          Confirmar Pago
         </button>
 
         <div className="mt-4">
@@ -449,7 +447,7 @@ export function BillingPanel({
             onClick={() => setShowVoidOrderModal(true)}
             className="w-full py-2 bg-red-100 text-red-700 rounded font-medium hover:bg-red-200"
           >
-            🚫 Void Entire Order
+            🚫 Cancelar órden entera
           </button>
         </div>
       </div>

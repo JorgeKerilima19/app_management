@@ -5,9 +5,7 @@ import { deleteStaffAction } from "./actions";
 
 export default function StaffTable({ staff }: { staff: any[] }) {
   if (staff.length === 0) {
-    return (
-      <p className="text-gray-500 text-center py-4">No staff members yet.</p>
-    );
+    return <p className="text-gray-500 text-center py-4">Sin personal</p>;
   }
 
   return (
@@ -15,11 +13,11 @@ export default function StaffTable({ staff }: { staff: any[] }) {
       <table className="w-full">
         <thead>
           <tr className="border-b border-gray-200 text-left text-sm text-gray-500">
-            <th className="pb-3 font-medium">Name</th>
+            <th className="pb-3 font-medium">Nombre</th>
             <th className="pb-3 font-medium">Email</th>
-            <th className="pb-3 font-medium">Role</th>
-            <th className="pb-3 font-medium">Added</th>
-            <th className="pb-3 font-medium text-right">Actions</th>
+            <th className="pb-3 font-medium">Rol</th>
+            <th className="pb-3 font-medium">Añadido</th>
+            <th className="pb-3 font-medium text-right">Acciones</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
@@ -41,7 +39,7 @@ export default function StaffTable({ staff }: { staff: any[] }) {
                     onClick={() => {
                       if (
                         confirm(
-                          `Are you sure you want to remove ${user.name}? This cannot be undone.`
+                          `Seguro quieres quitar a ${user.name}? Esto no se puede deshacer.`
                         )
                       ) {
                         const form = document.createElement("form");
@@ -60,7 +58,7 @@ export default function StaffTable({ staff }: { staff: any[] }) {
                     }}
                     className="text-red-500 hover:text-red-700 text-sm font-medium"
                   >
-                    Remove
+                    Quitar
                   </button>
                 )}
               </td>

@@ -25,14 +25,14 @@ export function CreateCategoryButton() {
         onClick={() => setIsOpen(true)}
         className="bg-violet-500 text-white px-3 py-1.5 rounded text-sm hover:bg-violet-600"
       >
-        + Add Category
+        + Añadir categoría
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-[#0000003a] bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold">Add Category</h3>
+              <h3 className="text-lg font-bold">Añadir categoría</h3>
               <button
                 onClick={() => setIsOpen(false)}
                 className="text-gray-500 hover:text-gray-700"
@@ -45,7 +45,7 @@ export function CreateCategoryButton() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Category name"
+                placeholder="Nombre de la categoría"
                 className="w-full px-3 py-2 border rounded mb-4"
                 required
               />
@@ -55,13 +55,13 @@ export function CreateCategoryButton() {
                   onClick={() => setIsOpen(false)}
                   className="px-4 py-2 text-gray-600"
                 >
-                  Cancel
+                  Cancelar
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-violet-500 text-white rounded hover:bg-violet-600"
                 >
-                  Add
+                  Añadir
                 </button>
               </div>
             </form>
@@ -109,14 +109,14 @@ export function CreateMenuItemButton({ categories }: { categories: any[] }) {
         onClick={() => setIsOpen(true)}
         className="bg-violet-500 text-white px-3 py-1.5 rounded text-sm hover:bg-violet-600"
       >
-        + Add Menu Item
+        + Añadir Menú Item
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-[#0000003a] bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold">Add Menu Item</h3>
+              <h3 className="text-lg font-bold">Añadir menú item</h3>
               <button
                 onClick={() => setIsOpen(false)}
                 className="text-gray-500 hover:text-gray-700"
@@ -129,14 +129,14 @@ export function CreateMenuItemButton({ categories }: { categories: any[] }) {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Item name"
+                placeholder="Nombre de Item"
                 className="w-full px-3 py-2 border rounded"
                 required
               />
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Description (optional)"
+                placeholder="Descripción (opcional)"
                 className="w-full px-3 py-2 border rounded"
                 rows={2}
               ></textarea>
@@ -145,7 +145,7 @@ export function CreateMenuItemButton({ categories }: { categories: any[] }) {
                 step="0.01"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                placeholder="Price"
+                placeholder="Precio"
                 className="w-full px-3 py-2 border rounded"
                 required
               />
@@ -155,7 +155,7 @@ export function CreateMenuItemButton({ categories }: { categories: any[] }) {
                 className="w-full px-3 py-2 border rounded"
                 required
               >
-                <option value="">Select category</option>
+                <option value="">Selecciona su categoría</option>
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
@@ -168,13 +168,13 @@ export function CreateMenuItemButton({ categories }: { categories: any[] }) {
                   onChange={(e) => setIsAvailable(e.target.checked)}
                   className="mr-2"
                 />
-                <label htmlFor="avail">Available</label>
+                <label htmlFor="avail">Disponible</label>
               </div>
               <input
                 type="number"
                 value={prepTimeMin}
                 onChange={(e) => setPrepTimeMin(e.target.value)}
-                placeholder="Prep time (min, optional)"
+                placeholder="Tiempo de preparación (en minutos), opcional"
                 className="w-full px-3 py-2 border rounded"
               />
               <div className="flex justify-end gap-2">
@@ -183,13 +183,13 @@ export function CreateMenuItemButton({ categories }: { categories: any[] }) {
                   onClick={() => setIsOpen(false)}
                   className="px-4 py-2 text-gray-600"
                 >
-                  Cancel
+                  Cancelar
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-violet-500 text-white rounded hover:bg-violet-600"
                 >
-                  Add Item
+                  Añadir Item
                 </button>
               </div>
             </form>

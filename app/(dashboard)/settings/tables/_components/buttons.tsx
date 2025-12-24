@@ -13,18 +13,18 @@ export function CreateTableButton() {
         onClick={() => setIsOpen(true)}
         className="bg-violet-500 text-white px-4 py-2 rounded hover:bg-violet-600 mb-6"
       >
-        + Add New Table
+        + Añadir nueva Mesa
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-[#0000003a] bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-md">
-            <h3 className="text-lg font-bold mb-4">Add New Table</h3>
+            <h3 className="text-lg font-bold mb-4">Añadir Mesa</h3>
             <form action={createTableAction} className="space-y-3">
               <input
                 type="number"
                 name="number"
-                placeholder="Table number"
+                placeholder="N° de Mesa"
                 className="w-full px-3 py-2 border rounded"
                 required
                 min="1"
@@ -34,9 +34,9 @@ export function CreateTableButton() {
                 className="w-full px-3 py-2 border rounded"
                 required
               >
-                <option value="">Select capacity</option>
-                <option value="4">4 people</option>
-                <option value="6">6 people</option>
+                <option value="">Capacidad</option>
+                <option value="4">4 personas</option>
+                <option value="6">6 personas</option>
               </select>
               <div className="flex justify-end space-x-2">
                 <button
@@ -44,13 +44,13 @@ export function CreateTableButton() {
                   className="px-4 py-2 text-gray-600"
                   onClick={() => setIsOpen(false)}
                 >
-                  Cancel
+                  Cancelar
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-violet-500 text-white rounded hover:bg-violet-600"
                 >
-                  Add Table
+                  Añadir Mesa
                 </button>
               </div>
             </form>

@@ -23,20 +23,20 @@ export default async function MenuSettingsPage() {
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-violet-600">Menu Settings</h1>
+        <h1 className="text-2xl font-bold text-violet-600">Administrar Menu</h1>
         <Link href="/settings" className="text-sm text-gray-500 hover:text-gray-700">
-          ← Back to Settings
+          ← Volver a Ajustes
         </Link>
       </div>
 
       {/* ===== CATEGORIES ===== */}
       <section>
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Categories</h2>
+          <h2 className="text-xl font-semibold">Categorias</h2>
           <CreateCategoryButton />
         </div>
         {serializedCategories.length === 0 ? (
-          <p className="text-gray-500">No categories yet.</p>
+          <p className="text-gray-500">Sin Categorias creadas</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {serializedCategories.map((category) => (
@@ -62,9 +62,9 @@ export default async function MenuSettingsPage() {
         </div>
 
         {serializedCategories.length === 0 ? (
-          <p className="text-gray-500">Create a category first.</p>
+          <p className="text-gray-500">Primero crea una categoría.</p>
         ) : serializedCategories.every(cat => cat.items.length === 0) ? (
-          <p className="text-gray-500">No menu items yet.</p>
+          <p className="text-gray-500">Sin items de Menú.</p>
         ) : (
           <div className="space-y-6">
             {serializedCategories.map((category) =>

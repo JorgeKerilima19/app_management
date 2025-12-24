@@ -1,4 +1,5 @@
 // app/(dashboard)/tables/page.tsx
+import LogoutButton from "@/components/LogoutButton";
 import prisma from "@/lib/prisma";
 import Link from "next/link";
 
@@ -9,7 +10,6 @@ export default async function TablesPage() {
 
   const getTable = (num: number) => tables.find((t) => t.number === num);
 
-  // Helper: render a table block
   const renderTable = (num: number) => {
     const table = getTable(num);
     if (!table) return null;
@@ -37,15 +37,14 @@ export default async function TablesPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto">
+      <LogoutButton />
       <h1 className="text-2xl font-bold text-violet-600 text-center mb-8">
-        Tables Overview
+        Vista de las mesas
       </h1>
 
       {/* INDOOR */}
       <div className="mb-12">
-        <h2 className="text-xl font-semibold text-center mb-6">
-          Indoor Dining
-        </h2>
+        <h2 className="text-xl font-semibold text-center mb-6">Interior</h2>
 
         {/* LEFT SIDE: 4-seaters */}
         <div className="flex justify-center gap-6 mb-8">
@@ -71,7 +70,7 @@ export default async function TablesPage() {
       {/* OUTDOOR (at bottom, centered) */}
       <div>
         <h2 className="text-xl font-semibold text-center mb-4">
-          Outdoor Patio
+          Exterior Patio
         </h2>
         <div className="flex justify-center gap-8">
           {renderTable(16)}

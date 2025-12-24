@@ -7,21 +7,20 @@ import { updateInventoryItem } from "../actions";
 export default async function EditInventoryItemPage({
   params,
 }: {
-  params: Promise<{ id: string }>; // ✅ params is a Promise in Next.js 15+
+  params: Promise<{ id: string }>;
 }) {
-  // ✅ Await params to get the actual object
   const { id } = await params;
 
   const item = await prisma.inventoryItem.findUnique({
-    where: { id }, // ✅ Now id is a string
+    where: { id },
   });
 
   if (!item) {
     return (
       <div className="p-8">
-        <p className="text-red-500">Item not found.</p>
+        <p className="text-red-500">Item no encontrado.</p>
         <Link href="/inventory" className="text-violet-600 mt-4 inline-block">
-          ← Back to Inventory
+          ← Volver a Inventario
         </Link>
       </div>
     );
@@ -30,12 +29,12 @@ export default async function EditInventoryItemPage({
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white border border-gray-200 rounded-xl">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-violet-600">Edit Item</h1>
+        <h1 className="text-2xl font-bold text-violet-600">Editar Item</h1>
         <Link
           href="/inventory"
           className="text-sm text-gray-500 hover:text-gray-700"
         >
-          ← Back to Inventory
+          ← Vovler a Inventario
         </Link>
       </div>
 
@@ -44,7 +43,7 @@ export default async function EditInventoryItemPage({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Name
+            Nombre
           </label>
           <input
             type="text"
@@ -58,7 +57,7 @@ export default async function EditInventoryItemPage({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Quantity
+              Cantidad
             </label>
             <input
               type="number"
@@ -71,7 +70,7 @@ export default async function EditInventoryItemPage({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Unit
+              Unidad
             </label>
             <input
               type="text"
@@ -79,34 +78,34 @@ export default async function EditInventoryItemPage({
               defaultValue={item.unit}
               className="w-full px-3 py-2 border rounded-lg"
               required
-              placeholder="kg, pcs, L..."
+              placeholder="kg, botella, pcs, L..."
             />
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Category (optional)
+            Categoría (opcional)
           </label>
           <input
             type="text"
             name="category"
             defaultValue={item.category || ""}
             className="w-full px-3 py-2 border rounded-lg"
-            placeholder="e.g., Produce, Dairy"
+            placeholder="ejem. Ingrediente, Bebida, etc"
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Notes (optional)
+            Nota (opcional)
           </label>
           <textarea
             name="notes"
             defaultValue={item.notes || ""}
             className="w-full px-3 py-2 border rounded-lg"
             rows={2}
-            placeholder="e.g., Organic, Local vendor"
+            placeholder="ejem, local"
           />
         </div>
 
@@ -115,13 +114,13 @@ export default async function EditInventoryItemPage({
             href="/inventory"
             className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
           >
-            Cancel
+            Cancelar
           </Link>
           <button
             type="submit"
             className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700"
           >
-            Save Changes
+            Guardar Cambios
           </button>
         </div>
       </form>

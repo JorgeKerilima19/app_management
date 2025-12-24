@@ -12,7 +12,7 @@ function LogoutButtonInner() {
       className="w-full text-left py-2 px-3 text-sm text-gray-300 hover:text-white hover:bg-red-600 rounded transition"
       disabled={pending}
     >
-      {pending ? 'Logging out...' : 'Logout'}
+      {pending ? 'Saliendo...' : 'Salir'}
     </button>
   );
 }

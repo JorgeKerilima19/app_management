@@ -2,8 +2,8 @@
 import prisma from "@/lib/prisma";
 import { markOrderAsReady } from "./actions";
 import { format } from "date-fns";
+import LogoutButton from "@/components/LogoutButton";
 
-// ✅ Batch fetch table numbers
 async function getTableNumbersForChecks(checks: any[]) {
   const tableIdMap = new Map<string, string>();
   const tableIds = new Set<string>();
@@ -41,7 +41,6 @@ async function getTableNumbersForChecks(checks: any[]) {
   return result;
 }
 
-// ✅ Color logic
 function getOrderColor(sentAt: Date) {
   const now = new Date();
   const minutes = Math.floor((now.getTime() - sentAt.getTime()) / 60000);
@@ -93,7 +92,7 @@ export default async function KitchenPage() {
         items: {
           include: {
             menuItem: {
-              include: { category: true }, // ✅ Critical: include category
+              include: { category: true },
             },
           },
         },
@@ -124,20 +123,21 @@ export default async function KitchenPage() {
       <meta httpEquiv="refresh" content="10" />
 
       <div className="max-w-7xl mx-auto p-4 md:p-6">
+        <LogoutButton></LogoutButton>
         <h1 className="text-3xl font-bold text-amber-800 mb-8 text-center">
-          🍳 KITCHEN ORDERS
+          Ordenes activas
         </h1>
 
         {/* ACTIVE ORDERS */}
         <section className="mb-12">
           <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center">
             <span className="w-4 h-4 bg-red-500 rounded-full mr-3 animate-pulse"></span>
-            NOW COOKING
+            A preparar
           </h2>
 
           {activeOrders.length === 0 ? (
             <p className="text-gray-600 text-lg text-center py-8 bg-gray-50 rounded-xl">
-              No active orders — take a breath! 😌
+              Sin ordenes activas
             </p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -159,7 +159,7 @@ export default async function KitchenPage() {
                     {/* Table & Time */}
                     <div className="text-center mb-4">
                       <div className={`text-4xl font-bold ${text}`}>
-                        Table {tableNumber}
+                        Mesa {tableNumber}
                       </div>
                       <div className="text-sm text-gray-600 mt-1">
                         {format(order.sentToKitchenAt!, "HH:mm")}
@@ -214,7 +214,7 @@ export default async function KitchenPage() {
           <section>
             <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center">
               <span className="w-4 h-4 bg-green-500 rounded-full mr-3"></span>
-              READY TO SERVE
+              Entregadas
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
               {completedOrders.map((order) => {
@@ -229,10 +229,10 @@ export default async function KitchenPage() {
                   >
                     <div className="text-center mb-3">
                       <div className="text-4xl font-bold text-blue-800">
-                        Table {tableNumber}
+                        Mesa {tableNumber}
                       </div>
                       <div className="text-sm text-blue-600 font-medium mt-1">
-                        Ready at {readyTime}
+                        Entregada {readyTime}
                       </div>
                     </div>
                     <div className="space-y-3">

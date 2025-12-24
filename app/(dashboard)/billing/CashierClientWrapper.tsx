@@ -12,7 +12,7 @@ export function CashierClientWrapper({ tables }: { tables: any[] }) {
     <div className="flex h-screen bg-gray-50">
       <div className="flex-1 p-4 overflow-auto">
         <h1 className="text-2xl font-bold text-emerald-700 mb-6 text-center">
-          Cashier Dashboard
+          Vista caja
         </h1>
         <TableMap
           tables={tables}

@@ -1,8 +1,13 @@
 @import "tailwindcss";
 
 @keyframes pulse-danger {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-  50% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
 }
 
 .animate-pulse-danger {
@@ -16,6 +21,17 @@
 
 .sidebar-collapsed .main-content {
   margin-left: 0 !important;
+}
+.sidebar-hidden aside {
+  display: none !important;
+}
+
+.sidebar-hidden main {
+  margin-left: 0 !important;
+}
+svg {
+  width: 2rem;
+  height: 2rem;
 }
 
 /* Optional: Show icons only when collapsed */

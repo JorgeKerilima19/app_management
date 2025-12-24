@@ -17,12 +17,12 @@ export default function MenuItemCard({ item }: { item: any }) {
             onClick={() => setIsEditing(true)}
             className="text-violet-600 hover:text-violet-800 text-sm"
           >
-            Edit
+            Editar
           </button>
           <form
             action={deleteMenuItem}
             onSubmit={(e) => {
-              if (!confirm(`Delete "${item.name}"?`)) {
+              if (!confirm(`Borrar "${item.name}"?`)) {
                 e.preventDefault();
               }
             }}
@@ -32,7 +32,7 @@ export default function MenuItemCard({ item }: { item: any }) {
               type="submit"
               className="text-red-500 hover:text-red-700 text-sm"
             >
-              Delete
+              Borrar
             </button>
           </form>
         </div>
@@ -48,7 +48,7 @@ export default function MenuItemCard({ item }: { item: any }) {
         </span>
         {!item.isAvailable && (
           <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">
-            Unavailable
+            No disponible
           </span>
         )}
       </div>

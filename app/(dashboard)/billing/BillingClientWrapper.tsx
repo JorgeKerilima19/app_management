@@ -31,7 +31,7 @@ export function BillingClientWrapper({
     <div className="flex h-screen bg-gray-50">
       <div className="flex-1 p-4 overflow-auto">
         <h1 className="text-2xl font-bold text-emerald-700 mb-6 text-center">
-          Billing Dashboard
+          Vista Cajero
         </h1>
         <TableMap
           tables={tables}

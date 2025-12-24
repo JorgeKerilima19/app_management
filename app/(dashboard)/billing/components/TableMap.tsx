@@ -71,9 +71,8 @@ export function TableMap({
     );
   };
 
-  // ✅ Guard against tables being undefined (shouldn't happen, but safe)
   if (!Array.isArray(tables)) {
-    return <div className="text-center py-8">Loading...</div>;
+    return <div className="text-center py-8">Cargando...</div>;
   }
 
   return (
@@ -85,19 +84,19 @@ export function TableMap({
             mergeMode ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-800"
           }`}
         >
-          {mergeMode ? "Cancel Merge" : "Merge Tables"}
+          {mergeMode ? "Cancelar Mezclar" : "Mezclar mesas"}
         </button>
         {mergeMode && firstTableId && (
           <p className="text-sm text-blue-600 mt-2">
-            Selected: Table {tables.find((t) => t.id === firstTableId)?.number}.
-            Click another to merge.
+            Selecciona otra mesa: Mesa {tables.find((t) => t.id === firstTableId)?.number}.
+            Clicka otra mesa para mezclar.
           </p>
         )}
       </div>
 
       <div className="mb-12">
         <h2 className="text-xl font-semibold mb-6 text-center">
-          Indoor Dining
+          Interior
         </h2>
         <div className="flex justify-center gap-8">
           <div className="flex gap-4">
@@ -119,7 +118,7 @@ export function TableMap({
 
       <div>
         <h2 className="text-xl font-semibold mb-4 text-center">
-          Outdoor Patio
+          Exterior
         </h2>
         <div className="flex justify-center gap-8">
           {renderTable(16)}

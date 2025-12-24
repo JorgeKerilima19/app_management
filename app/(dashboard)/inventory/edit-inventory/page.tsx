@@ -6,19 +6,21 @@ export default function AddInventoryItemPage() {
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white border border-gray-200 rounded-xl">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-violet-600">Add New Item</h1>
+        <h1 className="text-2xl font-bold text-violet-600">
+          Añadir nuevo item
+        </h1>
         <Link
           href="/inventory"
           className="text-sm text-gray-500 hover:text-gray-700"
         >
-          ← Back to Inventory
+          ← Volver a Inventario
         </Link>
       </div>
 
       <form action={createInventoryItem} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Name
+            Nombre
           </label>
           <input
             type="text"
@@ -31,7 +33,7 @@ export default function AddInventoryItemPage() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Quantity
+              Cantidad
             </label>
             <input
               type="number"
@@ -43,7 +45,7 @@ export default function AddInventoryItemPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Unit
+              Unidad
             </label>
             <input
               type="text"
@@ -57,25 +59,25 @@ export default function AddInventoryItemPage() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Category (optional)
+            Categoria (opcional)
           </label>
           <input
             type="text"
             name="category"
             className="w-full px-3 py-2 border rounded-lg"
-            placeholder="e.g., Produce, Dairy"
+            placeholder="ejm, Producido local, Bebida"
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Notes (optional)
+            Nota (opcional)
           </label>
           <textarea
             name="notes"
             className="w-full px-3 py-2 border rounded-lg"
             rows={2}
-            placeholder="e.g., Organic, Local vendor"
+            placeholder="ejem. Local"
           />
         </div>
 
@@ -84,13 +86,13 @@ export default function AddInventoryItemPage() {
             href="/inventory"
             className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
           >
-            Cancel
+            Cancelar
           </Link>
           <button
             type="submit"
             className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700"
           >
-            Add Item
+            Añadir Item
           </button>
         </div>
       </form>

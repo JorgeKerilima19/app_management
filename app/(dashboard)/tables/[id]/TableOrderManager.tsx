@@ -39,7 +39,6 @@ export function TableOrderManager({
 
   const hasPendingItems = pendingItems.length > 0;
 
-  // 🔁 Trigger print when shouldPrint becomes true
   useEffect(() => {
     if (shouldPrint && printContentRef.current) {
       const printWindow = window.open("", "_blank", "width=400,height=600");
@@ -49,7 +48,6 @@ export function TableOrderManager({
         return;
       }
 
-      // Clone styles and content
       const style = `
         <style>
           body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
@@ -64,7 +62,7 @@ export function TableOrderManager({
         <!DOCTYPE html>
         <html>
           <head>
-            <title>Bill - Table ${tableNumber}</title>
+            <title>Cuenta - Mesa ${tableNumber}</title>
             ${style}
           </head>
           <body>
@@ -94,11 +92,10 @@ export function TableOrderManager({
 
     try {
       await sendOrdersToKitchen(formData);
-      // ✅ After success, trigger print
       setShouldPrint(true);
     } catch (err) {
       console.error("Send failed:", err);
-      alert("Failed to send order. Please try again.");
+      alert("Ocurrió un error en la orden. Por favor vuelve a intentarlo.");
     } finally {
       setIsSending(false);
     }
@@ -106,7 +103,6 @@ export function TableOrderManager({
 
   return (
     <>
-      {/* ❗ Hidden div used ONLY for print content */}
       {shouldPrint && (
         <div style={{ display: "none" }} ref={printContentRef}>
           <CustomerBillPrint
@@ -123,7 +119,7 @@ export function TableOrderManager({
           0 && (
           <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 opacity-90">
             <h2 className="text-lg font-semibold mb-3 text-gray-700">
-              Sent to Kitchen
+              Ordenes activas
             </h2>
             {currentCheck.orders
               .filter((o: any) => o.status !== "PENDING")
@@ -144,7 +140,7 @@ export function TableOrderManager({
                       )}
                       <p className="text-xs text-gray-500">x{item.quantity}</p>
                       <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded mt-1 inline-block">
-                        SENT
+                        ENVIADO
                       </span>
                     </div>
                     <p className="font-bold text-gray-700">
@@ -160,7 +156,7 @@ export function TableOrderManager({
         {pendingItems.length > 0 && (
           <div className="bg-white border border-gray-200 rounded-xl p-4">
             <h2 className="text-lg font-semibold mb-3 text-violet-600">
-              Current Order
+              Añadir nueva orden
             </h2>
             {pendingItems.map((item: any) => (
               <div
@@ -212,7 +208,7 @@ export function TableOrderManager({
                     <input
                       type="text"
                       name="notes"
-                      placeholder="Special instructions..."
+                      placeholder="Requerimientos especiales..."
                       defaultValue={item.notes || ""}
                       className="w-full p-1.5 text-sm border rounded"
                       onBlur={(e) => e.currentTarget.form?.requestSubmit()}
@@ -240,7 +236,7 @@ export function TableOrderManager({
                     : "bg-gray-300 text-gray-500 cursor-not-allowed"
                 }`}
               >
-                {isSending ? "Sending..." : "✅ Send to Kitchen"}
+                {isSending ? "Enviando..." : "Enviar a Cocina"}
               </button>
             </form>
           </div>

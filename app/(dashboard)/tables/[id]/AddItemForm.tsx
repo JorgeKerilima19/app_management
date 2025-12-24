@@ -39,7 +39,7 @@ export function AddItemForm({
     return (
       <div className="p-3 bg-gray-100 rounded border text-gray-500 cursor-not-allowed">
         <p className="font-medium">{menuItem.name}</p>
-        <p className="text-xs">Not available</p>
+        <p className="text-xs">No disponible</p>
       </div>
     );
   }
@@ -88,13 +88,13 @@ export function AddItemForm({
               onClick={() => setShowNotes(false)}
               className="px-2 py-1 text-xs bg-gray-200 rounded"
             >
-              Cancel
+              Cancelar
             </button>
             <button
               type="submit"
               className="px-2 py-1 text-xs bg-violet-600 text-white rounded"
             >
-              Add
+              Añadir
             </button>
           </div>
         </form>

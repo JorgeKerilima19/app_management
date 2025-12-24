@@ -13,7 +13,7 @@ export function EditItemModal({
 }) {
   const [name, setName] = useState(item.name);
   const [description, setDescription] = useState(item.description || "");
-  const [price, setPrice] = useState(String(item.price)); // ✅ number → string for input
+  const [price, setPrice] = useState(String(item.price));
   const [isAvailable, setIsAvailable] = useState(item.isAvailable);
   const [prepTimeMin, setPrepTimeMin] = useState(
     item.prepTimeMin ? String(item.prepTimeMin) : ""
@@ -48,7 +48,7 @@ export function EditItemModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl max-w-md w-full p-6">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold">Edit Item</h3>
+          <h3 className="text-lg font-bold">Editar Item</h3>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
@@ -69,7 +69,7 @@ export function EditItemModal({
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Description (optional)"
+            placeholder="Descripción (opcional)"
             className="w-full px-3 py-2 border rounded-lg"
             rows={2}
           />
@@ -90,13 +90,13 @@ export function EditItemModal({
               onChange={(e) => setIsAvailable(e.target.checked)}
               className="mr-2"
             />
-            <label htmlFor="available">Available</label>
+            <label htmlFor="available">Disponible</label>
           </div>
           <input
             type="number"
             value={prepTimeMin}
             onChange={(e) => setPrepTimeMin(e.target.value)}
-            placeholder="Prep time (min, optional)"
+            placeholder="Prep time (opcional en minutos)"
             className="w-full px-3 py-2 border rounded-lg"
           />
 
@@ -108,14 +108,14 @@ export function EditItemModal({
               onClick={onClose}
               className="px-4 py-2 text-gray-600 rounded-lg"
             >
-              Cancel
+              Cancelar
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
               className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-50"
             >
-              {isSubmitting ? "Saving..." : "Save"}
+              {isSubmitting ? "Guardando..." : "Guardar"}
             </button>
           </div>
         </form>

@@ -7,7 +7,7 @@ export function DeleteCategoryForm({ id }: { id: string }) {
   const handleDelete = (e: React.FormEvent) => {
     if (
       !confirm(
-        "Delete this category? All items inside will be permanently removed."
+        "Borrar esta categoría?. Todos sus items serán borrados"
       )
     ) {
       e.preventDefault();
@@ -21,7 +21,7 @@ export function DeleteCategoryForm({ id }: { id: string }) {
         type="submit"
         className="text-red-500 hover:text-red-700 text-sm font-medium"
       >
-        Delete
+        Borrar
       </button>
     </form>
   );

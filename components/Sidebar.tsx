@@ -2,18 +2,26 @@
 import { getCurrentUser } from "@/lib/auth";
 import Link from "next/link";
 import LogoutButton from "./LogoutButton";
+import {
+  Dashboard,
+  Table,
+  Cashier,
+  Inventory,
+  Kitchen,
+  Settings,
+} from "@/components/svg";
 
 export default async function Sidebar() {
   const user = await getCurrentUser();
   if (!user) return null;
 
   const navItems = [
-    { label: "Dashboard", href: "/dashboard", icon: "📊" },
-    { label: "Tables", href: "/tables", icon: "🪑" },
-    { label: "Kitchen", href: "/kitchen", icon: "👨‍🍳" },
-    { label: "Billing", href: "/billing", icon: "💰" },
-    { label: "Inventory", href: "/inventory", icon: "📦" },
-    { label: "Settings", href: "/settings", icon: "⚙️" },
+    { label: "Panel", href: "/dashboard", icon: <Dashboard /> },
+    { label: "Mesas", href: "/tables", icon: <Table /> },
+    { label: "Cocina", href: "/kitchen", icon: <Kitchen /> },
+    { label: "Caja", href: "/billing", icon: <Cashier /> },
+    { label: "Inventario", href: "/inventory", icon: <Inventory /> },
+    { label: "Ajustes", href: "/settings", icon: <Settings /> },
   ];
 
   return (
@@ -22,11 +30,9 @@ export default async function Sidebar() {
       <div className="p-4 border-b border-gray-700">
         <Link href="/dashboard" className="flex items-center space-x-2">
           <span className="text-2xl">🍽️</span>
-          <span className="text-xl font-bold text-violet-400">Restaurant</span>
+          <span className="text-xl font-bold text-violet-400">Taguchi Restaurant</span>
         </Link>
       </div>
-
-      {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
         {navItems.map((item) => (
           <Link
@@ -34,7 +40,7 @@ export default async function Sidebar() {
             href={item.href}
             className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-violet-700 transition"
           >
-            <span className="text-lg">{item.icon}</span>
+            {item.icon}
             <span>{item.label}</span>
           </Link>
         ))}

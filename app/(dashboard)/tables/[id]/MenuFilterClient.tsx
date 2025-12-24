@@ -41,7 +41,7 @@ export function MenuFilterClient({
           }`}
           onClick={() => setSelectedCategory("")}
         >
-          All
+          Todos
         </button>
         {categories.map((category) => (
           <button

@@ -24,7 +24,7 @@ export function DeleteInventoryButton({
       onClick={handleDelete}
       className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm"
     >
-      Delete
+      Borrar
     </button>
   );
 }
