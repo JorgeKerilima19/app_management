@@ -8,3 +8,19 @@
 .animate-pulse-danger {
   animation: pulse-danger 2s infinite;
 }
+.sidebar-collapsed aside {
+  width: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.sidebar-collapsed .main-content {
+  margin-left: 0 !important;
+}
+
+/* Optional: Show icons only when collapsed */
+@media (min-width: 768px) {
+  .sidebar-collapsed aside ul li a span:last-child {
+    display: none;
+  }
+}

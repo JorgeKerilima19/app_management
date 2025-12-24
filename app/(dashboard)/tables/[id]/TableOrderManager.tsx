@@ -1,175 +1,264 @@
 // app/(dashboard)/tables/[id]/TableOrderManager.tsx
-'use client';
+"use client";
 
 import {
   addItemToOrder,
   removeItemFromOrder,
   sendOrdersToKitchen,
-} from './actions';
-import { useState, useMemo } from 'react';
-
-function groupPendingItems(pendingOrders: any[]) {
-  const grouped = new Map();
-  pendingOrders.flatMap(order =>
-    order.items.forEach((item: any) => {
-      const key = item.menuItemId;
-      if (grouped.has(key)) {
-        grouped.get(key).quantity += item.quantity;
-        grouped.get(key).ids.push(item.id);
-      } else {
-        grouped.set(key, {
-          ...item,
-          quantity: item.quantity,
-          ids: [item.id],
-        });
-      }
-    })
-  );
-  return Array.from(grouped.values());
-}
+  updateItemNotes,
+} from "./actions";
+import { useState, useEffect, useRef } from "react";
+import { MenuFilterClient } from "./MenuFilterClient";
+import { CustomerBillPrint } from "./CustomerBillPrint";
 
 export function TableOrderManager({
   tableId,
+  tableNumber,
   currentCheck,
   menuItems,
 }: {
   tableId: string;
+  tableNumber: number;
   currentCheck: any;
   menuItems: any[];
 }) {
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [isSending, setIsSending] = useState(false);
+  const [shouldPrint, setShouldPrint] = useState(false);
+  const printContentRef = useRef<HTMLDivElement>(null);
 
-  const pendingOrders = currentCheck.orders.filter((o: any) => o.status === 'PENDING');
-  const sentOrders = currentCheck.orders.filter((o: any) => o.status !== 'PENDING');
-  const groupedPending = useMemo(() => groupPendingItems(pendingOrders), [pendingOrders]);
+  const pendingOrders = currentCheck.orders.filter(
+    (o: any) => o.status === "PENDING"
+  );
+  const allOrdersForBill = currentCheck.orders.filter(
+    (o: any) => o.status === "PENDING" || o.status === "SENT"
+  );
 
-  const categories = useMemo(() => {
-    return Array.from(new Set(menuItems.map((item: any) => item.category.name))).sort();
-  }, [menuItems]);
+  const pendingItems = pendingOrders.flatMap((order: any) =>
+    order.items.map((item: any) => ({ ...item }))
+  );
 
-  const filteredMenu = selectedCategory
-    ? menuItems.filter((item: any) => item.category.name === selectedCategory)
-    : menuItems;
+  const hasPendingItems = pendingItems.length > 0;
+
+  // 🔁 Trigger print when shouldPrint becomes true
+  useEffect(() => {
+    if (shouldPrint && printContentRef.current) {
+      const printWindow = window.open("", "_blank", "width=400,height=600");
+      if (!printWindow) {
+        alert("Please allow pop-ups to print the bill.");
+        setShouldPrint(false);
+        return;
+      }
+
+      // Clone styles and content
+      const style = `
+        <style>
+          body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+          @media print {
+            @page { size: auto; margin: 2mm; }
+            body { -webkit-print-color-adjust: exact; }
+          }
+        </style>
+      `;
+
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Bill - Table ${tableNumber}</title>
+            ${style}
+          </head>
+          <body>
+            ${printContentRef.current.innerHTML}
+            <script>
+              window.onload = function() {
+                window.print();
+                // Close after print dialog closes (works in most browsers)
+                setTimeout(() => window.close(), 1000);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      setShouldPrint(false);
+    }
+  }, [shouldPrint, tableNumber]);
+
+  // 🔄 Custom submit handler
+  const handleSubmitSend = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!hasPendingItems || isSending) return;
+
+    setIsSending(true);
+    const formData = new FormData(e.currentTarget);
+
+    try {
+      await sendOrdersToKitchen(formData);
+      // ✅ After success, trigger print
+      setShouldPrint(true);
+    } catch (err) {
+      console.error("Send failed:", err);
+      alert("Failed to send order. Please try again.");
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   return (
-    <div className="space-y-8">
-      {/* SENT ORDERS (FIRST) */}
-      {sentOrders.length > 0 && (
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 opacity-90">
-          <h2 className="text-lg font-semibold mb-3 text-gray-700">Sent to Kitchen</h2>
-          {sentOrders.flatMap((order: any) =>
-            order.items.map((item: any) => (
-              <div key={item.id} className="flex justify-between bg-white p-3 rounded mb-2 border">
-                <div>
-                  <p className="font-medium text-gray-800">{item.menuItem.name}</p>
-                  {item.notes && <p className="text-xs text-gray-600">"{item.notes}"</p>}
-                  <p className="text-xs text-gray-500">x{item.quantity}</p>
-                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded mt-1 inline-block">
-                    {order.status}
+    <>
+      {/* ❗ Hidden div used ONLY for print content */}
+      {shouldPrint && (
+        <div style={{ display: "none" }} ref={printContentRef}>
+          <CustomerBillPrint
+            tableNumber={tableNumber}
+            orders={allOrdersForBill}
+            total={currentCheck.total}
+          />
+        </div>
+      )}
+
+      <div className="space-y-8">
+        {/* SENT ORDERS */}
+        {currentCheck.orders.filter((o: any) => o.status !== "PENDING").length >
+          0 && (
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 opacity-90">
+            <h2 className="text-lg font-semibold mb-3 text-gray-700">
+              Sent to Kitchen
+            </h2>
+            {currentCheck.orders
+              .filter((o: any) => o.status !== "PENDING")
+              .flatMap((order: any) =>
+                order.items.map((item: any) => (
+                  <div
+                    key={item.id}
+                    className="flex justify-between bg-white p-3 rounded mb-2 border"
+                  >
+                    <div>
+                      <p className="font-medium text-gray-800">
+                        {item.menuItem.name}
+                      </p>
+                      {item.notes && (
+                        <p className="text-xs text-gray-600 italic">
+                          "{item.notes}"
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500">x{item.quantity}</p>
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded mt-1 inline-block">
+                        SENT
+                      </span>
+                    </div>
+                    <p className="font-bold text-gray-700">
+                      ${(item.priceAtOrder * item.quantity).toFixed(2)}
+                    </p>
+                  </div>
+                ))
+              )}
+          </div>
+        )}
+
+        {/* CURRENT ORDER */}
+        {pendingItems.length > 0 && (
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <h2 className="text-lg font-semibold mb-3 text-violet-600">
+              Current Order
+            </h2>
+            {pendingItems.map((item: any) => (
+              <div
+                key={item.menuItem.id}
+                className="flex flex-col sm:flex-row sm:items-center gap-2 bg-gray-50 p-3 rounded mb-3"
+              >
+                <div className="font-medium flex-1">{item.menuItem.name}</div>
+                <div className="flex items-center gap-2">
+                  <form action={removeItemFromOrder}>
+                    <input type="hidden" name="tableId" value={tableId} />
+                    <input
+                      type="hidden"
+                      name="menuItemId"
+                      value={item.menuItem.id}
+                    />
+                    <button
+                      type="submit"
+                      className="w-8 h-8 rounded-full bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center"
+                    >
+                      –
+                    </button>
+                  </form>
+                  <span className="font-bold w-8 text-center">
+                    {item.quantity}
                   </span>
+                  <form action={addItemToOrder}>
+                    <input type="hidden" name="tableId" value={tableId} />
+                    <input
+                      type="hidden"
+                      name="menuItemId"
+                      value={item.menuItem.id}
+                    />
+                    <button
+                      type="submit"
+                      className="w-8 h-8 rounded-full bg-violet-100 text-violet-600 hover:bg-violet-200 flex items-center justify-center"
+                    >
+                      +
+                    </button>
+                  </form>
                 </div>
-                <p className="font-bold text-gray-700">
-                  ${(item.priceAtOrder * item.quantity).toFixed(2)}
-                </p>
+                <div className="w-full sm:w-64 mt-1 sm:mt-0">
+                  <form action={updateItemNotes} className="flex">
+                    <input type="hidden" name="tableId" value={tableId} />
+                    <input
+                      type="hidden"
+                      name="menuItemId"
+                      value={item.menuItem.id}
+                    />
+                    <input
+                      type="text"
+                      name="notes"
+                      placeholder="Special instructions..."
+                      defaultValue={item.notes || ""}
+                      className="w-full p-1.5 text-sm border rounded"
+                      onBlur={(e) => e.currentTarget.form?.requestSubmit()}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          e.currentTarget.form?.requestSubmit();
+                        }
+                      }}
+                    />
+                  </form>
+                </div>
               </div>
-            ))
-          )}
-        </div>
-      )}
+            ))}
 
-      {/* PENDING ORDERS */}
-      {groupedPending.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <h2 className="text-lg font-semibold mb-3 text-violet-600">Pending Order</h2>
-          {groupedPending.map((item: any) => (
-            <div key={item.menuItemId} className="flex justify-between items-center bg-gray-50 p-3 rounded mb-2">
-              <div>
-                <p className="font-medium">{item.menuItem.name}</p>
-                {item.notes && <p className="text-xs text-gray-600">"{item.notes}"</p>}
-                <p className="text-xs text-gray-500">x{item.quantity}</p>
-              </div>
-              <form action={removeItemFromOrder}>
-                <input type="hidden" name="tableId" value={tableId} />
-                <input type="hidden" name="orderItemId" value={item.ids[0]} />
-                <button
-                  type="submit"
-                  className="text-red-500 hover:text-red-700 text-sm"
-                >
-                  Remove
-                </button>
-              </form>
-            </div>
-          ))}
-
-          <form action={sendOrdersToKitchen} className="mt-4">
-            <input type="hidden" name="tableId" value={tableId} />
-            <button
-              type="submit"
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-medium"
-            >
-              ✅ Send All to Kitchen
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* TOTAL */}
-      <div className="border-t pt-4">
-        <p className="text-lg font-bold text-gray-900">
-          Total: ${(currentCheck.total).toFixed(2)}
-        </p>
-      </div>
-
-      {/* MENU */}
-      <div className="mt-8">
-        <h2 className="text-xl font-semibold mb-4">Add Items</h2>
-        <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-          <button
-            className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap ${
-              selectedCategory === ''
-                ? 'bg-violet-100 text-violet-800'
-                : 'bg-gray-100 hover:bg-gray-200'
-            }`}
-            onClick={() => setSelectedCategory('')}
-          >
-            All
-          </button>
-          {categories.map((category) => (
-            <button
-              key={category}
-              className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap ${
-                selectedCategory === category
-                  ? 'bg-violet-100 text-violet-800'
-                  : 'bg-gray-100 hover:bg-gray-200'
-              }`}
-              onClick={() => setSelectedCategory(category)}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto p-3 border border-gray-200 rounded-lg bg-gray-50">
-          {filteredMenu.map((item: any) => (
-            <form
-              key={item.id}
-              action={addItemToOrder}
-              className="group flex justify-between p-3 bg-white rounded border hover:bg-violet-50 cursor-pointer transition"
-            >
+            {/* SEND BUTTON */}
+            <form onSubmit={handleSubmitSend} className="mt-4">
               <input type="hidden" name="tableId" value={tableId} />
-              <input type="hidden" name="menuItemId" value={item.id} />
-              <input type="hidden" name="quantity" value="1" />
-              <div>
-                <p className="font-medium text-gray-900 group-hover:text-violet-700">{item.name}</p>
-                <p className="text-xs text-gray-500">{item.category.name}</p>
-              </div>
-              <p className="font-bold text-violet-600 group-hover:text-violet-800">
-                ${item.price.toFixed(2)}
-              </p>
+              <button
+                type="submit"
+                disabled={!hasPendingItems || isSending}
+                className={`w-full py-2 rounded-lg font-medium ${
+                  hasPendingItems && !isSending
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
+              >
+                {isSending ? "Sending..." : "✅ Send to Kitchen"}
+              </button>
             </form>
-          ))}
+          </div>
+        )}
+
+        {/* TOTAL */}
+        <div className="border-t pt-4">
+          <p className="text-lg font-bold text-gray-900">
+            Total: ${currentCheck.total.toFixed(2)}
+          </p>
+        </div>
+
+        {/* MENU */}
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold mb-4">Add Items</h2>
+          <MenuFilterClient tableId={tableId} menuItems={menuItems} />
         </div>
       </div>
-    </div>
+    </>
   );
 }
