@@ -1,172 +1,265 @@
 // app/(dashboard)/kitchen/page.tsx
 import prisma from "@/lib/prisma";
-import { markOrderAsReady } from './actions';
-import { format } from 'date-fns';
+import { markOrderAsReady } from "./actions";
+import { format } from "date-fns";
 
-// Helper: Parse table IDs and map to table number
-async function getTableNumberFromCheck(check: any): Promise<number | null> {
-  try {
-    const tableIds = JSON.parse(check.tableIds);
-    if (!Array.isArray(tableIds) || tableIds.length === 0) return null;
+// ✅ Batch fetch table numbers
+async function getTableNumbersForChecks(checks: any[]) {
+  const tableIdMap = new Map<string, string>();
+  const tableIds = new Set<string>();
 
-    // Fetch the table by ID to get its number
-    const table = await prisma.table.findUnique({
-      where: { id: tableIds[0] },
-    });
-    return table?.number || null;
-  } catch (error) {
-    console.error("Error parsing tableIds:", check.tableIds);
-    return null;
+  for (const check of checks) {
+    try {
+      const ids = JSON.parse(check.tableIds);
+      if (Array.isArray(ids) && ids.length > 0) {
+        tableIds.add(ids[0]);
+        tableIdMap.set(check.id, ids[0]);
+      }
+    } catch (e) {
+      console.error("Invalid tableIds:", check.tableIds);
+    }
+  }
+
+  if (tableIds.size === 0) return new Map();
+
+  const tables = await prisma.table.findMany({
+    where: { id: { in: Array.from(tableIds) } },
+    select: { id: true, number: true },
+  });
+
+  const tableNumberMap = new Map<string, number>();
+  for (const table of tables) {
+    tableNumberMap.set(table.id, table.number);
+  }
+
+  const result = new Map<string, number>();
+  for (const [checkId, tableId] of tableIdMap.entries()) {
+    const num = tableNumberMap.get(tableId);
+    if (num) result.set(checkId, num);
+  }
+
+  return result;
+}
+
+// ✅ Color logic
+function getOrderColor(sentAt: Date) {
+  const now = new Date();
+  const minutes = Math.floor((now.getTime() - sentAt.getTime()) / 60000);
+
+  if (minutes < 5) {
+    return {
+      bg: "bg-green-100",
+      border: "border-green-500",
+      text: "text-green-800",
+      pulse: "",
+    };
+  } else if (minutes <= 10) {
+    return {
+      bg: "bg-yellow-100",
+      border: "border-yellow-500",
+      text: "text-yellow-800",
+      pulse: "",
+    };
+  } else {
+    return {
+      bg: "bg-red-100",
+      border: "border-red-500",
+      text: "text-red-800",
+      pulse: "animate-pulse",
+    };
   }
 }
 
-// Helper: Get background color class
-function getBgClass(sentAt: Date) {
-  const minutes = Math.floor((Date.now() - sentAt.getTime()) / 60000);
-  if (minutes < 5) return "bg-green-50"; // Light green
-  if (minutes <= 10) return "bg-yellow-50"; // Light yellow
-  return "bg-red-50 animate-pulse-danger"; // Light red + pulse
-}
+// ✅ Group items by category (for display)
+function groupItemsByCategory(items: any[]) {
+  const categories = Array.from(
+    new Set(items.map((item) => item.menuItem.category?.name || "Other"))
+  ).sort();
 
-// Helper: Get border color class
-function getBorderClass(sentAt: Date) {
-  const minutes = Math.floor((Date.now() - sentAt.getTime()) / 60000);
-  if (minutes < 5) return "border-green-200";
-  if (minutes <= 10) return "border-yellow-200";
-  return "border-red-300";
+  return categories.map((cat) => ({
+    name: cat,
+    items: items.filter(
+      (item) => (item.menuItem.category?.name || "Other") === cat
+    ),
+  }));
 }
 
 export default async function KitchenPage() {
   const [activeOrders, completedOrders] = await Promise.all([
     prisma.order.findMany({
       where: { status: "SENT" },
-      include: { check: true, items: { include: { menuItem: true } } },
+      include: {
+        check: true,
+        items: {
+          include: {
+            menuItem: {
+              include: { category: true }, // ✅ Critical: include category
+            },
+          },
+        },
+      },
       orderBy: { sentToKitchenAt: "asc" },
     }),
     prisma.order.findMany({
       where: { status: { in: ["READY", "COMPLETED"] } },
-      include: { check: true, items: { include: { menuItem: true } } },
+      include: {
+        check: true,
+        items: {
+          include: {
+            menuItem: {
+              include: { category: true },
+            },
+          },
+        },
+      },
       orderBy: { updatedAt: "desc" },
     }),
   ]);
 
+  const allChecks = [...activeOrders, ...completedOrders].map((o) => o.check);
+  const tableNumberMap = await getTableNumbersForChecks(allChecks);
+
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6">
-      <h1 className="text-3xl font-bold text-amber-700 mb-8 text-center">
-        KITCHEN ORDERS
-      </h1>
+    <>
+      <meta httpEquiv="refresh" content="10" />
 
-      {/* ACTIVE ORDERS */}
-      <section className="mb-12">
-        <h2 className="text-2xl font-semibold mb-6 text-gray-800 flex items-center">
-          <span className="w-4 h-4 bg-green-500 rounded-full mr-3"></span>
-          NOW COOKING
-        </h2>
+      <div className="max-w-7xl mx-auto p-4 md:p-6">
+        <h1 className="text-3xl font-bold text-amber-800 mb-8 text-center">
+          🍳 KITCHEN ORDERS
+        </h1>
 
-        {activeOrders.length === 0 ? (
-          <p className="text-gray-500 text-lg text-center py-8">
-            No active orders
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {activeOrders.map(async (order) => {
-              const tableNumber = await getTableNumberFromCheck(order.check);
-              const bgClass = getBgClass(order.sentToKitchenAt!);
-              const borderClass = getBorderClass(order.sentToKitchenAt!);
-
-              return (
-                <form
-                  key={order.id}
-                  action={markOrderAsReady}
-                  className={`${bgClass} ${borderClass} border-2 rounded-xl p-5 shadow-md hover:shadow-lg transition cursor-pointer`}
-                >
-                  <input type="hidden" name="orderId" value={order.id} />
-
-                  <div className="text-center mb-4">
-                    <div className="text-3xl font-extrabold text-gray-800">
-                      Table {tableNumber ?? "?"}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 mb-4">
-                    {order.items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex justify-between text-sm"
-                      >
-                        <span className="font-medium">
-                          {item.menuItem.name}
-                        </span>
-                        <span className="font-medium">x{item.quantity}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {order.items.some((item) => item.notes) && (
-                    <div className="text-xs italic text-gray-600 mb-4">
-                      {order.items
-                        .filter((item) => item.notes)
-                        .map((item) => `"${item.notes}"`)
-                        .join(", ")}
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg transition text-sm"
-                  >
-                    MARK READY
-                  </button>
-                </form>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* COMPLETED ORDERS — WITH READY TIME */}
-      {completedOrders.length > 0 && (
-        <section>
-          <h2 className="text-2xl font-semibold mb-6 text-gray-800 flex items-center">
-            <span className="w-4 h-4 bg-gray-400 rounded-full mr-3"></span>
-            READY TO SERVE
+        {/* ACTIVE ORDERS */}
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center">
+            <span className="w-4 h-4 bg-red-500 rounded-full mr-3 animate-pulse"></span>
+            NOW COOKING
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {completedOrders.map(async (order) => {
-              const tableNumber = await getTableNumberFromCheck(order.check);
-              // ✅ Use updatedAt as "ready time"
-              const readyTime = format(order.updatedAt, "HH:mm");
 
-              return (
-                <div className="bg-gray-100 border-2 border-gray-200 rounded-xl p-5 opacity-90">
-                  {/* Table + Ready Time */}
-                  <div className="text-center mb-3">
-                    <div className="text-3xl font-extrabold text-gray-700">
-                      Table {tableNumber ?? "?"}
-                    </div>
-                    <div className="text-sm text-amber-700 font-medium mt-1">
-                      Ready at {readyTime}
-                    </div>
-                  </div>
+          {activeOrders.length === 0 ? (
+            <p className="text-gray-600 text-lg text-center py-8 bg-gray-50 rounded-xl">
+              No active orders — take a breath! 😌
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {activeOrders.map((order) => {
+                const tableNumber = tableNumberMap.get(order.check.id) ?? "?";
+                const { bg, border, text, pulse } = getOrderColor(
+                  order.sentToKitchenAt!
+                );
+                const groupedItems = groupItemsByCategory(order.items);
 
-                  {/* Items */}
-                  <div className="space-y-2">
-                    {order.items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex justify-between text-sm text-gray-600"
-                      >
-                        <span>{item.menuItem.name}</span>
-                        <span>x{item.quantity}</span>
+                return (
+                  <form
+                    key={order.id}
+                    action={markOrderAsReady}
+                    className={`${bg} ${border} border-2 rounded-xl p-5 shadow-md hover:shadow-lg transition-all ${pulse} cursor-pointer`}
+                  >
+                    <input type="hidden" name="orderId" value={order.id} />
+
+                    {/* Table & Time */}
+                    <div className="text-center mb-4">
+                      <div className={`text-4xl font-bold ${text}`}>
+                        Table {tableNumber}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                      <div className="text-sm text-gray-600 mt-1">
+                        {format(order.sentToKitchenAt!, "HH:mm")}
+                      </div>
+                    </div>
+
+                    {/* Items grouped by category */}
+                    <div className="space-y-3 mb-4">
+                      {groupedItems.map((group) => (
+                        <div key={group.name}>
+                          <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
+                            {group.name}
+                          </div>
+                          {group.items.map((item) => (
+                            <div
+                              key={item.id}
+                              className="flex justify-between font-medium text-gray-800"
+                            >
+                              <span>{item.menuItem.name}</span>
+                              <span>×{item.quantity}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Notes */}
+                    {order.items.some((item) => item.notes) && (
+                      <div className="text-xs bg-white/80 p-2 rounded text-center italic text-gray-700">
+                        {order.items
+                          .filter((item) => item.notes)
+                          .map((item) => `"${item.notes}"`)
+                          .join(", ")}
+                      </div>
+                    )}
+
+                    {/* ✅ Entire card is clickable — hidden submit fills the card */}
+                    <button
+                      type="submit"
+                      className="absolute inset-0 w-full h-full opacity-0"
+                      aria-label={`Mark order for Table ${tableNumber} as ready`}
+                    ></button>
+                  </form>
+                );
+              })}
+            </div>
+          )}
         </section>
-      )}
-    </div>
+
+        {/* COMPLETED ORDERS — also grouped by category */}
+        {completedOrders.length > 0 && (
+          <section>
+            <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center">
+              <span className="w-4 h-4 bg-green-500 rounded-full mr-3"></span>
+              READY TO SERVE
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {completedOrders.map((order) => {
+                const tableNumber = tableNumberMap.get(order.check.id) ?? "?";
+                const readyTime = format(order.updatedAt, "HH:mm");
+                const groupedItems = groupItemsByCategory(order.items);
+
+                return (
+                  <div
+                    className="bg-blue-50 border-2 border-blue-300 rounded-xl p-5"
+                    key={order.id}
+                  >
+                    <div className="text-center mb-3">
+                      <div className="text-4xl font-bold text-blue-800">
+                        Table {tableNumber}
+                      </div>
+                      <div className="text-sm text-blue-600 font-medium mt-1">
+                        Ready at {readyTime}
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      {groupedItems.map((group) => (
+                        <div key={group.name}>
+                          <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
+                            {group.name}
+                          </div>
+                          {group.items.map((item) => (
+                            <div
+                              key={item.id}
+                              className="flex justify-between text-gray-700"
+                            >
+                              <span>{item.menuItem.name}</span>
+                              <span>×{item.quantity}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+      </div>
+    </>
   );
 }

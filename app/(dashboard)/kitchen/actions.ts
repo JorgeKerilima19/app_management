@@ -4,6 +4,7 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+// ✅ Mark order as ready
 export async function markOrderAsReady(formData: FormData) {
   const orderId = formData.get("orderId") as string;
 
@@ -14,5 +15,10 @@ export async function markOrderAsReady(formData: FormData) {
     },
   });
 
+  revalidatePath("/kitchen");
+}
+
+// ✅ Optional: explicit refresh action (not needed if using meta refresh)
+export async function refreshKitchen() {
   revalidatePath("/kitchen");
 }
