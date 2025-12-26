@@ -14,11 +14,9 @@ export default async function TablesPage() {
     const table = getTable(num);
     if (!table) return null;
 
-    // 6-seaters: wider rectangle | 4-seaters: square
-    const is6Seater = num >= 11 && num <= 15;
-    const sizeClasses = is6Seater
-      ? "w-32 h-20" // wide rectangle
-      : "w-20 h-20"; // square
+    // Tables 1-5 are 6-seaters
+    const is6Seater = num >= 1 && num <= 5;
+    const sizeClasses = is6Seater ? "w-32 h-20" : "w-20 h-20";
 
     return (
       <Link key={table.id} href={`/tables/${table.id}`}>
@@ -35,6 +33,15 @@ export default async function TablesPage() {
     );
   };
 
+  // ✅ EXACT layout from your ASCII (top to bottom)
+  const rows = [
+    { left: [12, 11, 6], right: 5 }, // top row
+    { left: [13, 10, 7], right: 4 },
+    { left: [14, 9, 8], right: 3 },
+    { left: [15], right: 2 },
+    { left: [], right: 1 }, // bottom row
+  ];
+
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto">
       <LogoutButton />
@@ -45,29 +52,63 @@ export default async function TablesPage() {
       {/* INDOOR */}
       <div className="mb-12">
         <h2 className="text-xl font-semibold text-center mb-6">Interior</h2>
-
-        {/* LEFT SIDE: 4-seaters */}
         <div className="flex justify-center gap-6 mb-8">
-          {/* Column 1: 4 tables */}
-          <div className="flex flex-col gap-4">
-            {Array.from({ length: 4 }, (_, i) => renderTable(i + 1))}
-          </div>
-          {/* Columns 2 & 3: 3 tables each */}
-          <div className="flex flex-col gap-4">
-            {Array.from({ length: 3 }, (_, i) => renderTable(i + 5))}
-          </div>
-          <div className="flex flex-col gap-4">
-            {Array.from({ length: 3 }, (_, i) => renderTable(i + 8))}
+          {/* Left: 3 columns of 4-seaters */}
+          <div className="flex gap-4">
+            {/* Column 1: first item of each row */}
+            <div className="flex flex-col gap-4">
+              {rows.map((row, idx) => (
+                <div key={`col1-${idx}`}>
+                  {row.left[0] ? (
+                    renderTable(row.left[0])
+                  ) : (
+                    <div className="w-20 h-20"></div>
+                  )}
+                </div>
+              ))}
+            </div>
+            {/* Column 2: second item */}
+            <div className="flex flex-col gap-4">
+              {rows.map((row, idx) => (
+                <div key={`col2-${idx}`}>
+                  {row.left[1] ? (
+                    renderTable(row.left[1])
+                  ) : (
+                    <div className="w-20 h-20"></div>
+                  )}
+                </div>
+              ))}
+            </div>
+            {/* Column 3: third item */}
+            <div className="flex flex-col gap-4">
+              {rows.map((row, idx) => (
+                <div key={`col3-${idx}`}>
+                  {row.left[2] ? (
+                    renderTable(row.left[2])
+                  ) : (
+                    <div className="w-20 h-20"></div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* RIGHT SIDE: 6-seaters — centered vertically */}
+          {/* Right: 6-seaters (1-5) */}
           <div className="flex flex-col justify-center gap-4 ml-12">
-            {Array.from({ length: 5 }, (_, i) => renderTable(i + 11))}
+            {rows.map((row, idx) => (
+              <div key={`right-${idx}`}>
+                {row.right ? (
+                  renderTable(row.right)
+                ) : (
+                  <div className="w-32 h-20"></div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* OUTDOOR (at bottom, centered) */}
+      {/* OUTDOOR */}
       <div>
         <h2 className="text-xl font-semibold text-center mb-4">
           Exterior Patio

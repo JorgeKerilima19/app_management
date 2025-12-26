@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
 export default async function HomePage() {
-  const user = await getCurrentUser();
+  const user:any = await getCurrentUser();
 
   if (!user) {
     redirect("/login");
