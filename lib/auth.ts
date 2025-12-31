@@ -21,7 +21,6 @@ export async function getCurrentUser() {
   return user;
 }
 
-// Use in page.tsx to protect home
 export async function requireAuthAndRedirect() {
   const user = await getCurrentUser();
   if (!user) {

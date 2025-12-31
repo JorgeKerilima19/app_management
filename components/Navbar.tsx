@@ -1,7 +1,6 @@
 // components/Navbar.tsx
 import { getCurrentUser } from "@/lib/auth";
 import Link from "next/link";
-import LogoutButton from "./LogoutButton";
 
 export default async function Navbar() {
   const user = await getCurrentUser();
@@ -10,7 +9,6 @@ export default async function Navbar() {
   const navItems = [
     { label: "Dashboard", href: "/dashboard" },
     { label: "Tables", href: "/tables" },
-    { label: "Kitchen", href: "/kitchen" },
     { label: "Billing", href: "/billing" },
     { label: "Inventory", href: "/inventory" },
     { label: "Settings", href: "/settings" },

@@ -4,9 +4,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 
-// ✅ Define error return type
 export type LoginState = {
   success: boolean;
   message?: string;
@@ -19,7 +18,6 @@ export async function login(
   const email = formData.get("email");
   const password = formData.get("password");
 
-  // ✅ Validation
   if (typeof email !== "string" || typeof password !== "string") {
     return { success: false, message: "Email and password are required" };
   }
@@ -34,11 +32,7 @@ export async function login(
     return { success: false, message: "Invalid email or password" };
   }
 
-  // ✅ Set session
-  (
-    await // ✅ Set session
-    cookies()
-  ).set("user_id", user.id, {
+  (await cookies()).set("user_id", user.id, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     maxAge: 7 * 24 * 60 * 60,
@@ -46,11 +40,48 @@ export async function login(
     sameSite: "lax",
   });
 
-  redirect("/dashboard");
-
-  return { success: true };
+  // Role-based redirect
+  switch (user.role) {
+    case "OWNER":
+    case "ADMIN":
+      redirect("/inventory");
+    case "MESERO":
+      redirect("/tables");
+    case "COCINERO":
+      redirect("/kitchen");
+    case "BARISTA":
+      redirect("/bar");
+    case "CAJERO":
+      redirect("/cashier");
+    default:
+      redirect("/login");
+  }
 }
+
 export async function logout() {
   (await cookies()).delete("user_id");
+  redirect("/login");
+}
+
+// Register action (for first user)
+export async function register(_: any, formData: FormData) {
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
+  const name = formData.get("name") as string;
+
+  if (!email || !password || !name) {
+    return { error: "All fields required" };
+  }
+
+  const hashed = await bcrypt.hash(password, 10);
+  await prisma.user.create({
+    data: {
+      email,
+      password: hashed,
+      name,
+      role: "OWNER",
+    },
+  });
+
   redirect("/login");
 }

@@ -1,63 +1,49 @@
 // app/login/page.tsx
 "use client";
 
-import { login, LoginState } from "@/app/actions";
-import { useFormState, useFormStatus } from "react-dom";
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="w-full bg-violet-500 text-white py-2 rounded hover:bg-violet-600 transition"
-    >
-      {pending ? "Logging in..." : "Login"}
-    </button>
-  );
-}
+import { useFormState } from "react-dom";
+import { login } from "@/app/actions";
 
 export default function LoginPage() {
-  // ✅ Initial state: { success: true } (no error)
-  const initialState: LoginState = { success: true };
+  const initialState = { success: false, message: "" };
   const [state, formAction] = useFormState(login, initialState);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <form action={formAction} className="w-full max w-sm space-y-4 p-6">
-        <h1 className="text-2xl font-bold text-violet-500 text-center">
-          Login
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="w-full max-w-sm bg-white p-6 rounded shadow">
+        <h1 className="text-2xl font-bold text-center text-violet-500 mb-6">
+          Restaurant POS
         </h1>
-
-        {/* ✅ Now state.message is safe */}
         {state.message && (
-          <p className="text-red-500 text-center">{state.message}</p>
+          <p className="text-red-500 text-center mb-4">{state.message}</p>
         )}
-
-        <input
-          name="email"
-          type="email"
-          placeholder="Email"
-          className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-violet-500"
-          required
-        />
-        <input
-          name="password"
-          type="password"
-          placeholder="Password"
-          className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-violet-500"
-          required
-        />
-
-        <SubmitButton />
-
-        <p className="text-center mt-4">
-          Don’t have an account?{" "}
-          <a href="/register" className="text-violet-500 hover:underline">
-            Register
-          </a>
-        </p>
-      </form>
+        <form action={formAction} className="space-y-4">
+          <div>
+            <input
+              type="email"
+              name="email"
+              placeholder="Email"
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded text-black focus:outline-none focus:ring-2 focus:ring-violet-500"
+            />
+          </div>
+          <div>
+            <input
+              type="password"
+              name="password"
+              placeholder="Password"
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded text-black focus:outline-none focus:ring-2 focus:ring-violet-500"
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full bg-violet-500 text-white py-2 rounded hover:bg-violet-600 transition"
+          >
+            Sign In
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
