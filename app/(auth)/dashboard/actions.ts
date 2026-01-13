@@ -79,26 +79,52 @@ export async function openRestaurant(startingCash: number) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Check if already opened
-  const existing = await prisma.dailySummary.findUnique({
+  // Check if a summary exists for today
+  let existingSummary = await prisma.dailySummary.findUnique({
     where: { date: today },
   });
 
-  if (existing) {
-    throw new Error("El restaurante ya está abierto para hoy");
+  if (existingSummary) {
+    // If it exists, check its status
+    if (existingSummary.status === "OPEN") {
+      throw new Error("El restaurante ya está abierto para hoy");
+    }
+    // If it's CLOSED, we can reuse it or update it
+    // Let's update the existing record to OPEN state with the new starting cash
+    await prisma.dailySummary.update({
+      where: { id: existingSummary.id },
+      data: {
+        startingCash: startingCash,
+        totalCash: 0, // Reset totals for the new session
+        totalYape: 0,
+        endingCash: startingCash, // Reset ending cash
+        status: "OPEN",
+        openedById: user.id, // Update who opened it
+        openedAt: new Date(), // Update when it was opened
+        closedById: null, // Reset closure info
+        closedAt: null,
+      },
+    });
+    console.log(
+      `Reopened existing daily summary for ${today.toISOString()} with new starting cash: ${startingCash}`
+    );
+  } else {
+    // If no summary exists for today, create a new one
+    await prisma.dailySummary.create({
+      data: {
+        date: today,
+        startingCash: startingCash,
+        totalCash: 0,
+        totalYape: 0,
+        endingCash: startingCash,
+        openedById: user.id,
+        status: "OPEN",
+      },
+    });
+    console.log(
+      `Created new daily summary for ${today.toISOString()} with starting cash: ${startingCash}`
+    );
   }
-
-  await prisma.dailySummary.create({
-    data: {
-      date: today,
-      startingCash: startingCash,
-      totalCash: 0,
-      totalYape: 0,
-      endingCash: startingCash, // Initially same as starting
-      openedById: user.id,
-      status: "OPEN",
-    },
-  });
 
   revalidatePath("/dashboard");
 }
