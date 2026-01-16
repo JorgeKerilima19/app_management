@@ -1,0 +1,308 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ===== USER =====
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String // hash with bcrypt
+  name      String
+  role      Role     @default(ADMIN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Audit: who added this user
+  addedById  String?
+  addedBy    User?   @relation("UserAddedBy", fields: [addedById], references: [id])
+  addedUsers User[]  @relation("UserAddedBy")
+
+  // Relations
+  ordersOpened         Order[]        @relation("OrderOrderedBy")
+  checksOpened         Check[]        @relation("CheckOpenedBy")
+  checksClosed         Check[]        @relation("CheckClosedBy")
+  paymentsMade         Payment[]
+  voidRecords          VoidRecord[]
+  openedDailySummaries DailySummary[] @relation("DailySummaryOpenedBy")
+  closedDailySummaries DailySummary[] @relation("DailySummaryClosedBy")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MESERO
+  COCINERO
+  CAJERO
+  BARISTA
+}
+
+// ===== TABLES =====
+model Table {
+  id        String      @id @default(cuid())
+  number    Int         @unique
+  name      String? // e.g., "Patio 1" — for renaming
+  capacity  Int // Enforce 4 or 8 in app
+  status    TableStatus @default(AVAILABLE)
+  deletedAt DateTime? // soft delete — if set, table is "deleted" (preserves history)
+
+  // Table merging (hierarchical: merged tables point to parent)
+  mergedIntoId String?
+  mergedInto   Table?  @relation("MergedTable", fields: [mergedIntoId], references: [id])
+  mergedTables Table[] @relation("MergedTable")
+
+  // Current open check (optional — for quick lookup)
+  currentCheckId String?
+  currentCheck   Check?  @relation(fields: [currentCheckId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Future: printer routing per table?
+  // printerId String?
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  DIRTY
+}
+
+// ===== MENU =====
+model Category {
+  id           String     @id @default(cuid())
+  name         String
+  displayOrder Int        @default(0)
+  isActive     Boolean    @default(true)
+  items        MenuItem[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+enum Station {
+  KITCHEN
+  BAR
+}
+
+model MenuItem {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  price       Decimal
+  isAvailable Boolean     @default(true)
+  prepTimeMin Int?
+  station     Station
+  categoryId  String
+  category    Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  orderItems  OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+// ===== CHECKS (your "receipt session") =====
+model Check {
+  id     String      @id @default(cuid())
+  status CheckStatus @default(OPEN)
+
+  // Tables involved (supports merged tables)
+  // We keep your JSON for simplicity, but could normalize later
+  tableIds String // JSON array: ["tbl_1", "tbl_2"] — store merged group
+
+  notes String? // e.g., "Birthday party", "VIP"
+
+  openedAt DateTime  @default(now())
+  closedAt DateTime?
+
+  subtotal Decimal @default(0)
+  tax      Decimal @default(0)
+  discount Decimal @default(0)
+  total    Decimal @default(0)
+
+  // Staff
+  openedById String
+  openedBy   User    @relation("CheckOpenedBy", fields: [openedById], references: [id])
+  closedById String?
+  closedBy   User?   @relation("CheckClosedBy", fields: [closedById], references: [id])
+
+  // Relations
+  orders   Order[]
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tables    Table[]
+}
+
+enum CheckStatus {
+  OPEN
+  CLOSED
+  VOIDED
+}
+
+// ===== ORDERS =====
+model Order {
+  id          String      @id @default(cuid())
+  status      OrderStatus @default(PENDING)
+  checkId     String
+  check       Check       @relation(fields: [checkId], references: [id], onDelete: Cascade)
+  orderedById String
+  orderedBy   User        @relation("OrderOrderedBy", fields: [orderedById], references: [id])
+
+  // Kitchen/bar workflow
+  sentToKitchenAt DateTime?
+  sentToBarAt     DateTime? // future: track separately
+  completedAt     DateTime? // when all items are SERVED
+
+  items     OrderItem[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+enum OrderItemStatus {
+  PENDING
+  PREPARING
+  READY
+  SERVED
+  VOIDED
+}
+
+enum OrderStatus {
+  PENDING
+  SENT // sent to kitchen/bar
+  PREPARING
+  READY
+  COMPLETED // all items served
+  CANCELLED
+}
+
+// ===== ORDER ITEMS =====
+model OrderItem {
+  id           String          @id @default(cuid())
+  orderId      String
+  order        Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId   String
+  menuItem     MenuItem        @relation(fields: [menuItemId], references: [id])
+  quantity     Int             @default(1)
+  notes        String? // e.g., "no onions"
+  priceAtOrder Decimal // snapshot of price at order time
+  status       OrderItemStatus @default(PENDING)
+
+  // Flexible modifiers as JSON (PostgreSQL JSONB)
+  // Example: [{"name":"Spice","option":"Hot","price":"0.00"}]
+  modifiers Json?
+
+  createdAt DateTime @default(now())
+
+  // Future: item-level void? But we have VoidRecord → better for audit
+}
+
+// ===== PAYMENTS =====
+model Payment {
+  id      String        @id @default(cuid())
+  checkId String
+  check   Check         @relation(fields: [checkId], references: [id])
+  method  PaymentMethod
+  amount  Decimal // total amount
+
+  // Split tracking
+  cashAmount Decimal? // for CASH or MIXED
+  yapeAmount Decimal? // for MOBILE_PAY (YAPE) or MIXED
+
+  status    PaymentStatus @default(COMPLETED)
+  createdAt DateTime      @default(now())
+
+  // Who processed it?
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+}
+
+enum PaymentMethod {
+  CASH
+  MOBILE_PAY // = YAPE
+  MIXED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  REFUNDED
+  FAILED
+}
+
+// ===== VOID / CANCEL AUDIT LOG =====
+model VoidRecord {
+  id         String     @id @default(cuid())
+  target     VoidTarget
+  targetId   String // ID of order, orderItem, or check
+  reason     String // e.g., "Wrong order", "Customer request"
+  voidedById String
+  voidedBy   User       @relation(fields: [voidedById], references: [id])
+  note       String?
+  createdAt  DateTime   @default(now())
+}
+
+enum VoidTarget {
+  ORDER
+  ORDER_ITEM
+  CHECK
+}
+
+// ===== INVENTORY (manual tracking) =====
+model InventoryItem {
+  id        String   @id @default(cuid())
+  name      String // e.g., "Pisco"
+  quantity  Float    @default(0)
+  unit      String // "bottles", "kg", "units"
+  category  String? // "Liquor", "Produce", etc.
+  notes     String? // "Organic", "Supplier: XYZ"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ===== FUTURE: DAILY PAYMENT SUMMARY (optional, can be computed) =====
+// Keep your PaymentSummary for fast reporting
+model PaymentSummary {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date
+  cashTotal Decimal  @default(0)
+  yapeTotal Decimal  @default(0)
+  total     Decimal
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([date])
+  @@index([date])
+}
+
+// Add this new model to your schema
+model DailySummary {
+  id           String             @id @default(cuid())
+  date         DateTime           @db.Date // Store as date only
+  startingCash Decimal // Amount owner leaves at opening
+  totalCash    Decimal // Total cash sales for the day
+  totalYape    Decimal // Total yape sales for the day
+  endingCash   Decimal // Calculated: totalCash - startingCash
+  status       DailySummaryStatus @default(OPEN)
+  openedById   String
+  openedBy     User               @relation("DailySummaryOpenedBy", fields: [openedById], references: [id])
+  closedById   String?
+  closedBy     User?              @relation("DailySummaryClosedBy", fields: [closedById], references: [id])
+  openedAt     DateTime           @default(now())
+  closedAt     DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@unique([date])
+  @@index([date])
+}
+
+enum DailySummaryStatus {
+  OPEN // Restaurant is open
+  CLOSED // Restaurant is closed
+}
