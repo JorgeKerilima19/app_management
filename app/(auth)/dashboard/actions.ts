@@ -2,44 +2,93 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 
-export async function fetchDashboardData() {
+export async function openRestaurant(startingCash: number) {
   const user = await getCurrentUser();
-  if (!user) throw new Error("No autorizado");
+  if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
+    throw new Error("No autorizado");
+  }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Get daily summary for today
+  let existingSummary = await prisma.dailySummary.findUnique({
+    where: { date: today },
+  });
+
+  if (existingSummary) {
+    if (existingSummary.status === "OPEN") {
+      throw new Error("El restaurante ya está abierto para hoy");
+    }
+    await prisma.dailySummary.update({
+      where: { id: existingSummary.id },
+      data: {
+        startingCash,
+        totalCash: 0,
+        totalYape: 0,
+        endingCash: startingCash,
+        status: "OPEN",
+        openedById: user.id,
+        openedAt: new Date(),
+        closedById: null,
+        closedAt: null,
+      },
+    });
+  } else {
+    await prisma.dailySummary.create({
+      data: {
+        date: today,
+        startingCash,
+        totalCash: 0,
+        totalYape: 0,
+        endingCash: startingCash,
+        openedById: user.id,
+        status: "OPEN",
+      },
+    });
+  }
+
+  revalidatePath("/dashboard");
+}
+
+export async function fetchDashboardData() {
+  const user = await getCurrentUser();
+  if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
+    throw new Error("No autorizado");
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Daily Summary
   const dailySummary = await prisma.dailySummary.findUnique({
     where: { date: today },
-    include: { openedBy: { select: { name: true } } },
   });
 
-  // Get today's sales data
+  // Payments
   const payments = await prisma.payment.findMany({
     where: { createdAt: { gte: today } },
-    select: { method: true, amount: true, cashAmount: true, yapeAmount: true },
   });
 
-  let cashSales = 0;
-  let yapeSales = 0;
-  let totalSales = 0;
+  let totalCash = 0;
+  let totalYape = 0;
+  let totalMixed = 0;
+  let totalOverall = 0;
 
   payments.forEach((p) => {
-    totalSales += Number(p.amount);
-
-    if (p.method === "CASH" || p.method === "MIXED") {
-      cashSales += p.cashAmount ? Number(p.cashAmount) : Number(p.amount);
-    }
-    if (p.method === "MOBILE_PAY" || p.method === "MIXED") {
-      yapeSales += p.yapeAmount ? Number(p.yapeAmount) : 0;
+    totalOverall += Number(p.amount);
+    if (p.method === "CASH") totalCash += Number(p.amount);
+    if (p.method === "MOBILE_PAY") totalYape += Number(p.amount);
+    if (p.method === "MIXED") {
+      totalCash += p.cashAmount ? Number(p.cashAmount) : 0;
+      totalYape += p.yapeAmount ? Number(p.yapeAmount) : 0;
+      totalMixed += Number(p.amount);
     }
   });
 
-  // Recent orders
+  // Recent Orders
   const recentOrders = await prisma.order.findMany({
     where: { createdAt: { gte: today } },
     include: {
@@ -50,7 +99,7 @@ export async function fetchDashboardData() {
     take: 5,
   });
 
-  // Recent voids
+  // Void Records
   const recentVoids = await prisma.voidRecord.findMany({
     where: { createdAt: { gte: today } },
     include: { voidedBy: { select: { name: true } } },
@@ -58,130 +107,44 @@ export async function fetchDashboardData() {
     take: 5,
   });
 
+  // Top Items
+  const topItems = await prisma.orderItem.groupBy({
+    by: ["menuItemId"],
+    where: { order: { createdAt: { gte: today } } },
+    _sum: { quantity: true },
+    orderBy: { _sum: { quantity: "desc" } },
+    take: 5,
+  });
+
+  const menuItemIds = topItems.map((t) => t.menuItemId);
+  let menuItemsMap = new Map();
+  if (menuItemIds.length > 0) {
+    const menuItems = await prisma.menuItem.findMany({
+      where: { id: { in: menuItemIds } },
+      include: { category: true },
+    });
+    menuItemsMap = new Map(menuItems.map((m) => [m.id, m]));
+  }
+
+  const topItemsWithDetails = topItems.map((t) => ({
+    menuItem: menuItemsMap.get(t.menuItemId),
+    totalQuantity: t._sum.quantity || 0,
+  }));
+
   return {
     dailySummary,
-    todayStats: {
-      cashSales,
-      yapeSales,
-      totalSales,
-    },
-    activity: {
-      recentOrders,
-      recentVoids,
-    },
-  };
-}
-
-export async function openRestaurant(startingCash: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("No autorizado");
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  // Check if a summary exists for today
-  let existingSummary = await prisma.dailySummary.findUnique({
-    where: { date: today },
-  });
-
-  if (existingSummary) {
-    // If it exists, check its status
-    if (existingSummary.status === "OPEN") {
-      throw new Error("El restaurante ya está abierto para hoy");
-    }
-    // If it's CLOSED, we can reuse it or update it
-    // Let's update the existing record to OPEN state with the new starting cash
-    await prisma.dailySummary.update({
-      where: { id: existingSummary.id },
-      data: {
-        startingCash: startingCash,
-        totalCash: 0, // Reset totals for the new session
-        totalYape: 0,
-        endingCash: startingCash, // Reset ending cash
-        status: "OPEN",
-        openedById: user.id, // Update who opened it
-        openedAt: new Date(), // Update when it was opened
-        closedById: null, // Reset closure info
-        closedAt: null,
-      },
-    });
-    console.log(
-      `Reopened existing daily summary for ${today.toISOString()} with new starting cash: ${startingCash}`
-    );
-  } else {
-    // If no summary exists for today, create a new one
-    await prisma.dailySummary.create({
-      data: {
-        date: today,
-        startingCash: startingCash,
-        totalCash: 0,
-        totalYape: 0,
-        endingCash: startingCash,
-        openedById: user.id,
-        status: "OPEN",
-      },
-    });
-    console.log(
-      `Created new daily summary for ${today.toISOString()} with starting cash: ${startingCash}`
-    );
-  }
-
-  revalidatePath("/dashboard");
-}
-
-export async function closeRestaurant() {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("No autorizado");
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const summary = await prisma.dailySummary.findUnique({
-    where: { date: today, status: "OPEN" },
-  });
-
-  if (!summary) {
-    throw new Error("No hay resumen diario activo");
-  }
-
-  // Get final sales for the day
-  const payments = await prisma.payment.findMany({
-    where: { createdAt: { gte: today } },
-    select: { method: true, cashAmount: true, yapeAmount: true, amount: true },
-  });
-
-  let totalCash = 0;
-  let totalYape = 0;
-
-  payments.forEach((p) => {
-    if (p.method === "CASH" || p.method === "MIXED") {
-      totalCash += p.cashAmount ? Number(p.cashAmount) : Number(p.amount);
-    }
-    if (p.method === "MOBILE_PAY" || p.method === "MIXED") {
-      totalYape += p.yapeAmount ? Number(p.yapeAmount) : 0;
-    }
-  });
-
-  const endingCash = totalCash - Number(summary.startingCash);
-
-  await prisma.dailySummary.update({
-    where: { id: summary.id },
-    data: {
+    payments: {
       totalCash,
       totalYape,
-      endingCash,
-      status: "CLOSED",
-      closedById: user.id,
-      closedAt: new Date(),
+      totalMixed,
+      totalOverall,
+      cashPercentage: totalOverall > 0 ? (totalCash / totalOverall) * 100 : 0,
+      yapePercentage: totalOverall > 0 ? (totalYape / totalOverall) * 100 : 0,
+      mixedPercentage: totalOverall > 0 ? (totalMixed / totalOverall) * 100 : 0,
     },
-  });
-
-  revalidatePath("/dashboard");
-
-  return {
-    startingCash: Number(summary.startingCash),
-    totalCash,
-    totalYape,
-    endingCash,
+    recentOrders,
+    recentVoids,
+    topItems: topItemsWithDetails,
+    date: today,
   };
 }

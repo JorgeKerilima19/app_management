@@ -5,7 +5,6 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcrypt";
-import { SESSION_COOKIE, COOKIE_OPTIONS } from "@/lib/auth";
 
 export type LoginState = {
   success: boolean;
@@ -20,23 +19,26 @@ export async function login(
   const password = formData.get("password");
 
   if (typeof email !== "string" || typeof password !== "string") {
-    return { success: false, message: "Email y contraseña son requeridos" };
+    return { success: false, message: "Email and password are required" };
   }
 
   if (email.length === 0 || password.length === 0) {
-    return {
-      success: false,
-      message: "Email y contraseña no pueden estar vacíos",
-    };
+    return { success: false, message: "Email and password cannot be empty" };
   }
 
   const user = await prisma.user.findUnique({ where: { email } });
 
   if (!user || !(await bcrypt.compare(password, user.password))) {
-    return { success: false, message: "Email o contraseña inválidos" };
+    return { success: false, message: "Invalid email or password" };
   }
 
-  (await cookies()).set(SESSION_COOKIE, user.id, COOKIE_OPTIONS);
+  (await cookies()).set("user_id", user.id, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 7 * 24 * 60 * 60,
+    path: "/",
+    sameSite: "lax",
+  });
 
   // Role-based redirect
   switch (user.role) {
@@ -57,7 +59,7 @@ export async function login(
 }
 
 export async function logout() {
-  (await cookies()).delete(SESSION_COOKIE);
+  (await cookies()).delete("user_id");
   redirect("/login");
 }
 
@@ -68,7 +70,7 @@ export async function register(_: any, formData: FormData) {
   const name = formData.get("name") as string;
 
   if (!email || !password || !name) {
-    return { error: "Todos los campos son requeridos" };
+    return { error: "All fields required" };
   }
 
   const hashed = await bcrypt.hash(password, 10);
