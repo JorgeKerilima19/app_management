@@ -10,7 +10,7 @@ import {
 } from "../actions";
 import { SplitPayment } from "./SplitPayment";
 import { CustomerBillPrint } from "../CustomerBillPrint";
-import { mergeTablesAction } from "../actions"; 
+import { mergeTablesAction } from "../actions";
 
 function VoidItemModal({
   item,
@@ -59,8 +59,8 @@ function VoidItemModal({
                 setQuantity(
                   Math.min(
                     item.quantity,
-                    Math.max(1, parseInt(e.target.value) || 1)
-                  )
+                    Math.max(1, parseInt(e.target.value) || 1),
+                  ),
                 )
               }
               className="w-full p-2 border border-gray-300 rounded text-black"
@@ -165,12 +165,12 @@ function VoidOrderModal({
 
 function groupItemsByCategory(items: any[]) {
   const categories = Array.from(
-    new Set(items.map((item) => item.menuItem.category?.name || "Otros"))
+    new Set(items.map((item) => item.menuItem.category?.name || "Otros")),
   ).sort();
   return categories.map((cat) => ({
     name: cat,
     items: items.filter(
-      (item) => (item.menuItem.category?.name || "Otros") === cat
+      (item) => (item.menuItem.category?.name || "Otros") === cat,
     ),
   }));
 }
@@ -189,6 +189,7 @@ export function BillingPanel({
   >("CASH");
   const [cashAmount, setCashAmount] = useState("");
   const [yapeAmount, setYapeAmount] = useState("");
+  const [receivedAmount, setReceivedAmount] = useState(""); // ✅ New state for received amount
   const [isSplitMode, setIsSplitMode] = useState(false);
   const [showVoidItemModal, setShowVoidItemModal] = useState<any>(null);
   const [showVoidOrderModal, setShowVoidOrderModal] = useState(false);
@@ -266,8 +267,8 @@ export function BillingPanel({
       paymentMethod === "CASH"
         ? cashNum
         : paymentMethod === "MOBILE_PAY"
-        ? yapeNum
-        : cashNum + yapeNum;
+          ? yapeNum
+          : cashNum + yapeNum;
 
     if (Math.abs(totalPaid - check.total) > 0.01) {
       alert("Los montos no coinciden con el total");
@@ -308,9 +309,13 @@ export function BillingPanel({
     paymentMethod === "CASH"
       ? cashNum
       : paymentMethod === "MOBILE_PAY"
-      ? yapeNum
-      : cashNum + yapeNum;
+        ? yapeNum
+        : cashNum + yapeNum;
   const isTotalMatching = Math.abs(totalPaid - check.total) < 0.01;
+
+  // ✅ Calculate change
+  const receivedNum = parseFloat(receivedAmount) || 0;
+  const changeAmount = receivedNum - check.total;
 
   return (
     <>
@@ -439,8 +444,8 @@ export function BillingPanel({
                     {method === "MOBILE_PAY"
                       ? "Yape"
                       : method === "CASH"
-                      ? "Efectivo"
-                      : "Mixto"}
+                        ? "Efectivo"
+                        : "Mixto"}
                   </label>
                 ))}
               </div>
@@ -473,6 +478,33 @@ export function BillingPanel({
                   className="w-full p-2 border border-gray-300 rounded text-black"
                   step="0.01"
                 />
+              </div>
+            )}
+
+            {/* ✅ CHANGE CALCULATOR */}
+            {paymentMethod === "CASH" && (
+              <div className="mb-4">
+                <label className="block text-sm mb-1 text-gray-700">
+                  Monto recibido
+                </label>
+                <input
+                  type="number"
+                  value={receivedAmount}
+                  onChange={(e) => setReceivedAmount(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded text-black"
+                  step="0.01"
+                  placeholder="Ingrese monto recibido"
+                />
+                {receivedNum > 0 && (
+                  <p
+                    className={`mt-1 text-sm ${
+                      changeAmount >= 0 ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    Cambio: S/ {Math.abs(changeAmount).toFixed(2)}
+                    {changeAmount < 0 && " (monto insuficiente)"}
+                  </p>
+                )}
               </div>
             )}
 

@@ -41,39 +41,55 @@ export default function KitchenView({
         fetchPreparedToday(),
       ]);
 
-      const allItems = active.flatMap((order) => order.items);
+      // ✅ Sort orders by the earliest item time within the order
+      const sortedActive = active.sort((a, b) => {
+        const aEarliest = Math.min(
+          ...a.items.map((item) => item.itemOrderedAt.getTime()),
+        );
+        const bEarliest = Math.min(
+          ...b.items.map((item) => item.itemOrderedAt.getTime()),
+        );
+        return aEarliest - bEarliest;
+      });
+
+      const allItems = sortedActive.flatMap((order) =>
+        order.items.map((item) => ({
+          ...item,
+          orderId: order.id,
+          tableNumber: order.tableNumber,
+          tableName: order.tableName,
+          waiterName: order.waiterName,
+        })),
+      );
       const now = Date.now();
       const NEW_ITEM_THRESHOLD_MS = 5500;
 
       const newItems = allItems.filter(
         (item) =>
           now - item.itemOrderedAt.getTime() < NEW_ITEM_THRESHOLD_MS &&
-          !hasPlayedNewOrderSoundRef.current.has(item.id)
+          !hasPlayedNewOrderSoundRef.current.has(item.id),
       );
 
       if (newItems.length > 0) {
         playSound("bell.mp3");
         newItems.forEach((item) =>
-          hasPlayedNewOrderSoundRef.current.add(item.id)
+          hasPlayedNewOrderSoundRef.current.add(item.id),
         );
       }
 
-      // ✅ Play color change sound only once per item when crossing thresholds
       for (const item of allItems) {
         const ageMin = (now - item.itemOrderedAt.getTime()) / 60000;
-
-        // Check if item just crossed 5 or 10 minute threshold
         if (
           !hasPlayedColorChangeSoundRef.current.has(item.id) &&
           (ageMin >= 5 || ageMin >= 10)
         ) {
           playSound("alert.mp3");
           hasPlayedColorChangeSoundRef.current.add(item.id);
-          break; // Play sound once per load
+          break;
         }
       }
 
-      setActiveOrders(active);
+      setActiveOrders(sortedActive);
       setPreparedOrders(prepared);
     } catch (error) {
       console.error("Error loading orders:", error);
@@ -93,8 +109,9 @@ export default function KitchenView({
     loadOrders();
   };
 
-  const getCardStyles = (itemOrderedAt: Date) => {
-    const ageMin = (Date.now() - itemOrderedAt.getTime()) / 60000;
+  // ✅ Updated getCardStyles to use earliest item time
+  const getCardStyles = (earliestItemTime: number) => {
+    const ageMin = (Date.now() - earliestItemTime) / 60000;
     if (ageMin < 5) {
       return {
         border: "border-green-500",
@@ -116,85 +133,82 @@ export default function KitchenView({
     };
   };
 
-  const allActiveItems = activeOrders.flatMap((order) =>
-    order.items.map((item) => ({
-      ...item,
-      orderId: order.id,
-      tableNumber: order.tableNumber,
-      tableName: order.tableName,
-      waiterName: order.waiterName,
-    }))
-  );
-
   return (
     <div className="space-y-8">
-      {/* Active Items - Cards */}
+      {/* Active Orders - Cards */}
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-4">
-          Ítems Activos ({allActiveItems.length})
+          Órdenes Activas ({activeOrders.length})
         </h2>
-        {allActiveItems.length === 0 ? (
+        {activeOrders.length === 0 ? (
           <p className="text-gray-500 text-center py-8 text-xl">
-            No hay ítems pendientes
+            No hay órdenes pendientes
           </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {allActiveItems.map((item) => {
-              const styles = getCardStyles(item.itemOrderedAt);
+            {activeOrders.map((order) => {
+              // ✅ Calculate earliest item time for this order
+              const earliestItemTime = Math.min(
+                ...order.items.map((item) => item.itemOrderedAt.getTime()),
+              );
+              const styles = getCardStyles(earliestItemTime);
+
               return (
                 <div
-                  key={item.id}
+                  key={order.id}
                   className={`border-2 rounded-2xl p-5 cursor-pointer transition-all hover:shadow-lg ${styles.border} ${styles.bg}`}
-                  onClick={() => handleMarkItemReady(item.id)}
+                  onClick={() => {
+                    // Mark all items in this order as ready
+                    order.items.forEach((item) => handleMarkItemReady(item.id));
+                  }}
                 >
                   <div className="mb-4">
                     <h3
                       className={`text-2xl font-bold ${styles.text} text-center`}
                     >
-                      {item.tableName}
+                      {order.tableName}
                     </h3>
                     <p
-                      className={`text-sm ${
-                        styles.text === "text-white"
-                          ? "text-white"
-                          : "text-gray-700"
-                      }`}
+                      className={`text-sm ${styles.text === "text-white" ? "text-white" : "text-gray-700"}`}
                     >
-                      {item.itemOrderedAt.toLocaleTimeString([], {
+                      {new Date(earliestItemTime).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
                       {" • "}
-                      <span className="font-medium">{item.waiterName}</span>
+                      <span className="font-medium">{order.waiterName}</span>
                     </p>
                   </div>
 
                   <div className="space-y-3">
-                    <div
-                      className={`font-bold ${
-                        styles.text === "text-white"
-                          ? "text-white"
-                          : "text-gray-800"
-                      } mb-1`}
-                    >
-                      {item.categoryName}
-                    </div>
-                    <div className="flex justify-between">
-                      <span className={`text-xl font-medium ${styles.text}`}>
-                        {item.name} {item.quantity > 1 && `(x${item.quantity})`}
-                      </span>
-                      {item.notes && (
-                        <span
-                          className={`text-lg ${
-                            styles.text === "text-white"
-                              ? "text-white"
-                              : "text-gray-600"
-                          } italic`}
-                        >
-                          "{item.notes}"
-                        </span>
-                      )}
-                    </div>
+                    {Object.entries(groupItemsByCategory(order.items)).map(
+                      ([category, items]) => (
+                        <div key={category}>
+                          <div
+                            className={`font-bold ${styles.text === "text-white" ? "text-white" : "text-gray-800"} mb-1`}
+                          >
+                            {category}
+                          </div>
+                          {items.map((item) => (
+                            <div key={item.id} className="flex justify-between">
+                              <span
+                                className={`text-xl font-medium ${styles.text}`}
+                              >
+                                {item.name}{" "}
+                                {item.quantity > 1 && `(x${item.quantity})`}
+                              </span>
+                              {item.notes && (
+                                <span
+                                  className={`text-lg ${styles.text === "text-white" ? "text-white" : "text-gray-600"} italic`}
+                                >
+                                  "{item.notes}"
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ),
+                    )}
                   </div>
                 </div>
               );
@@ -263,4 +277,13 @@ export default function KitchenView({
       )}
     </div>
   );
+}
+
+function groupItemsByCategory(items: any[]) {
+  const grouped: Record<string, typeof items> = {};
+  items.forEach((item) => {
+    if (!grouped[item.categoryName]) grouped[item.categoryName] = [];
+    grouped[item.categoryName].push(item);
+  });
+  return grouped;
 }

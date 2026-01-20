@@ -16,6 +16,7 @@ export type BarOrder = {
     quantity: number;
     notes: string | null;
     categoryName: string;
+    itemOrderedAt: Date; // ✅ Add this field
   }[];
   orderUpdatedAt: Date;
 };
@@ -49,6 +50,7 @@ export async function fetchActiveBarOrders(): Promise<BarOrder[]> {
           id: true,
           quantity: true,
           notes: true,
+          createdAt: true,
           menuItem: {
             select: {
               name: true,
@@ -81,7 +83,7 @@ export async function fetchActiveBarOrders(): Promise<BarOrder[]> {
     tables.map((t) => [
       t.id,
       { number: t.number, name: t.name || `Mesa ${t.number}` },
-    ])
+    ]),
   );
 
   return orders.map((order) => {
@@ -100,6 +102,7 @@ export async function fetchActiveBarOrders(): Promise<BarOrder[]> {
         quantity: item.quantity,
         notes: item.notes,
         categoryName: item.menuItem.category.name,
+        itemOrderedAt: item.createdAt,
       })),
       orderUpdatedAt: order.updatedAt,
     };
@@ -153,7 +156,7 @@ export async function fetchPreparedBarToday(): Promise<PreparedBarOrder[]> {
     select: { id: true, name: true, number: true },
   });
   const tableMap = new Map(
-    tables.map((t) => [t.id, t.name || `Mesa ${t.number}`])
+    tables.map((t) => [t.id, t.name || `Mesa ${t.number}`]),
   );
 
   return orders.map((order) => {
@@ -165,7 +168,7 @@ export async function fetchPreparedBarToday(): Promise<PreparedBarOrder[]> {
         (item) =>
           `${item.menuItem.name}${
             item.quantity > 1 ? ` (x${item.quantity})` : ""
-          }`
+          }`,
       )
       .join(", ");
 
@@ -180,7 +183,6 @@ export async function fetchPreparedBarToday(): Promise<PreparedBarOrder[]> {
   });
 }
 
-// ✅ Update Order.updatedAt when marking as ready
 export async function markBarOrderAsReady(formData: FormData) {
   const orderId = formData.get("orderId")?.toString();
   if (!orderId) return;
