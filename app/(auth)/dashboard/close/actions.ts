@@ -96,11 +96,20 @@ export async function fetchClosingSummary(categoryId?: string) {
     }
   });
 
-  // Items Sold
+  // ✅ FIXED: Fetch items sold TODAY from CLOSED checks
   const itemGroups = await prisma.orderItem.groupBy({
     by: ["menuItemId"],
     where: {
-      order: { createdAt: { gte: today } },
+      // ✅ Filter by OrderItem creation time
+      createdAt: { gte: today },
+      // ✅ Only include items from CLOSED checks
+      order: {
+        check: {
+          status: "CLOSED",
+          closedAt: { gte: today },
+        },
+      },
+      // ✅ Optional category filter
       menuItem: categoryId ? { categoryId } : undefined,
     },
     _sum: { quantity: true },

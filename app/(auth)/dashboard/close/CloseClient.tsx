@@ -57,22 +57,7 @@ export default function CloseClient({
 }) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
-  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(
-    undefined,
-  );
-
-  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value || undefined;
-    setSelectedCategory(value);
-    const url = new URL(window.location.href);
-    if (value) {
-      url.searchParams.set("categoryId", value);
-    } else {
-      url.searchParams.delete("categoryId");
-    }
-    window.history.pushState({}, "", url);
-    router.refresh();
-  };
+  const [selectedCategory, setSelectedCategory] = useState<string>(""); // ✅ Client-side state
 
   const handleClose = () => {
     startTransition(async () => {
@@ -85,6 +70,17 @@ export default function CloseClient({
       }
     });
   };
+
+  const totalSales = initialData.sales.totalCash + initialData.sales.totalYape;
+  const closingAmount =
+    totalSales - (initialData.dailySummary?.startingCash || 0);
+
+  // ✅ Client-side filtering
+  const filteredItems = selectedCategory
+    ? initialData.itemsSold.filter(
+        (item) => item.menuItem?.category?.name === selectedCategory,
+      )
+    : initialData.itemsSold;
 
   return (
     <div className="space-y-8 p-4 max-w-6xl mx-auto">
@@ -120,7 +116,7 @@ export default function CloseClient({
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
             Resumen Diario
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
               <h3 className="text-lg font-bold text-blue-800">Apertura</h3>
               <p className="text-xl md:text-2xl font-bold mt-2 text-gray-900">
@@ -139,47 +135,61 @@ export default function CloseClient({
                 S/ {initialData.sales.totalYape.toFixed(2)}
               </p>
             </div>
+            <div className="bg-violet-50 border border-violet-200 rounded-lg p-4 text-center">
+              <h3 className="text-lg font-bold text-violet-800">Cierre</h3>
+              <p className="text-xl md:text-2xl font-bold mt-2 text-gray-900">
+                S/ {closingAmount.toFixed(2)}
+              </p>
+            </div>
           </div>
           {initialData.dailySummary.status === "CLOSED" && (
             <div className="mt-4 text-center">
               <p className="text-xl font-bold text-violet-600">
-                Cierre: S/ {initialData.dailySummary.endingCash.toFixed(2)}
+                Cierre Final: S/{" "}
+                {initialData.dailySummary.endingCash.toFixed(2)}
               </p>
             </div>
           )}
         </div>
       )}
 
-      {/* Category Filter */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">
-          Filtrar Ítems por Categoría
-        </h2>
-        <select
-          value={selectedCategory || ""}
-          onChange={handleCategoryChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded text-black bg-white"
-        >
-          <option value="">Todas las Categorías</option>
-          {initialData.categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
       {/* Items Sold */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6">
         <h2 className="text-xl font-semibold text-gray-800 mb-4">
           Ítems Vendidos (
-          {initialData.itemsSold.reduce(
-            (sum, item) => sum + item.totalQuantity,
-            0,
-          )}
-          )
+          {filteredItems.reduce((sum, item) => sum + item.totalQuantity, 0)})
         </h2>
-        {initialData.itemsSold.length === 0 ? (
+
+        {/* ✅ Client-Side Category Filter */}
+        <div className="mb-4">
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedCategory("")}
+              className={`px-3 py-1 rounded-full text-xs font-medium ${
+                !selectedCategory
+                  ? "bg-violet-600 text-white"
+                  : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+              }`}
+            >
+              Todas
+            </button>
+            {initialData.categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.name)}
+                className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  selectedCategory === cat.name
+                    ? "bg-violet-600 text-white"
+                    : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {filteredItems.length === 0 ? (
           <p className="text-gray-500">No se vendieron ítems hoy.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -198,7 +208,7 @@ export default function CloseClient({
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {initialData.itemsSold.map((item, idx) => (
+                {filteredItems.map((item, idx) => (
                   <tr key={idx} className="hover:bg-gray-50">
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                       {item.menuItem?.name || "Desconocido"}
