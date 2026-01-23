@@ -5,7 +5,7 @@ import { useFormState } from "react-dom";
 import { useEffect } from "react";
 import { updateMenuItem } from "./actions";
 
-type Category = { id: string; name: string };
+type Category = { id: string; name: string; isActive: boolean };
 type MenuItem = {
   id: string;
   name: string;
@@ -14,7 +14,7 @@ type MenuItem = {
   isAvailable: boolean;
   prepTimeMin: number | null;
   categoryId: string;
-  station: "KITCHEN" | "BAR"; // ✅
+  station: "KITCHEN" | "BAR";
 };
 
 export default function MenuItemModal({
@@ -28,7 +28,6 @@ export default function MenuItemModal({
 }) {
   const [state, formAction] = useFormState(updateMenuItem, { error: "" });
 
-  // Close modal on success
   useEffect(() => {
     if (state.success) {
       onClose();
@@ -74,7 +73,7 @@ export default function MenuItemModal({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            {/* Category */}
+            {/* Category — ✅ Allow all categories */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Categoría *
@@ -83,10 +82,11 @@ export default function MenuItemModal({
                 name="categoryId"
                 defaultValue={item.categoryId}
                 className="w-full px-3 py-2 border border-gray-300 rounded text-gray-900 bg-white"
+                required
               >
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
-                    {cat.name}
+                    {cat.name} {cat.isActive ? "" : "(Inactiva)"}
                   </option>
                 ))}
               </select>
@@ -101,6 +101,7 @@ export default function MenuItemModal({
                 name="station"
                 defaultValue={item.station}
                 className="w-full px-3 py-2 border border-gray-300 rounded text-gray-900 bg-white"
+                required
               >
                 <option value="KITCHEN">Cocina</option>
                 <option value="BAR">Bar</option>

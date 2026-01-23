@@ -75,34 +75,20 @@ export async function fetchDashboardData() {
     where: { date: today },
   });
 
-  // ✅ CORRECT: Include MIXED payments in Cash/Yape
-  const payments = await prisma.payment.findMany({
-    where: {
-      createdAt: { gte: today },
-      check: { status: "CLOSED" },
-    },
+  const paymentSummary = await prisma.paymentSummary.findUnique({
+    where: { date: today },
   });
 
   let totalCash = 0;
   let totalYape = 0;
   let totalOverall = 0;
 
-  payments.forEach((p) => {
-    if (p.method === "CASH") {
-      totalCash += toNumber(p.amount);
-      totalOverall += toNumber(p.amount);
-    } else if (p.method === "MOBILE_PAY") {
-      totalYape += toNumber(p.amount);
-      totalOverall += toNumber(p.amount);
-    } else if (p.method === "MIXED") {
-      // ✅ Add cash/yape portions to respective totals
-      totalCash += p.cashAmount ? toNumber(p.cashAmount) : 0;
-      totalYape += p.yapeAmount ? toNumber(p.yapeAmount) : 0;
-      totalOverall += toNumber(p.amount);
-    }
-  });
+  if (paymentSummary) {
+    totalCash = toNumber(paymentSummary.cashTotal);
+    totalYape = toNumber(paymentSummary.yapeTotal);
+    totalOverall = toNumber(paymentSummary.total);
+  }
 
-  // ✅ FIXED: Get table names from merged tables
   const recentOrders = await prisma.order.findMany({
     where: {
       createdAt: { gte: today },
@@ -115,7 +101,7 @@ export async function fetchDashboardData() {
       },
       check: {
         select: {
-          tableIds: true, // Keep as JSON string
+          tableIds: true,
         },
       },
     },
@@ -123,7 +109,6 @@ export async function fetchDashboardData() {
     take: 5,
   });
 
-  // Extract table IDs and fetch names
   const allTableIds = new Set<string>();
   recentOrders.forEach((order) => {
     try {

@@ -4,6 +4,15 @@
 import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 
+function toNumber(value: any): number {
+  if (value == null) return 0;
+  if (typeof value === "number") return value;
+  if (value && typeof value.toNumber === "function") {
+    return value.toNumber();
+  }
+  return parseFloat(value.toString());
+}
+
 // === CATEGORIES ===
 
 export async function createCategory(_: any, formData: FormData) {
@@ -39,23 +48,26 @@ export async function updateCategory(_: any, formData: FormData) {
   }
 
   try {
-    await prisma.category.update({
-      where: { id },
-      data: { name: name.trim(), isActive: isActive ?? true },
-    });
-
-    // If disabling category, disable all its menu items
-    if (isActive === false) {
-      await prisma.menuItem.updateMany({
-        where: { categoryId: id },
-        data: { isAvailable: false },
+    // ✅ Use transaction for safety
+    await prisma.$transaction(async (tx) => {
+      await tx.category.update({
+        where: { id },
+        data: { name: name.trim(), isActive: isActive ?? true },
       });
-    }
+
+      if (isActive === false) {
+        await tx.menuItem.updateMany({
+          where: { categoryId: id },
+          data: { isAvailable: false },
+        });
+      }
+    });
 
     revalidatePath("/settings/menu");
     return { success: true };
   } catch (error) {
-    return { error: "Error al actualizar" };
+    console.error("Update category error:", error);
+    return { error: "Error al actualizar la categoría" };
   }
 }
 
@@ -64,14 +76,21 @@ export async function deleteCategory(_: any, formData: FormData) {
   if (!id) return { error: "ID requerido" };
 
   try {
-    await prisma.$transaction([
-      prisma.menuItem.deleteMany({ where: { categoryId: id } }),
-      prisma.category.delete({ where: { id } }),
-    ]);
+    // ✅ Check if category has ANY menu items (even inactive)
+    const menuItemCount = await prisma.menuItem.count({
+      where: { categoryId: id },
+    });
+
+    if (menuItemCount > 0) {
+      return { error: "No se puede eliminar. Solo desactívala." };
+    }
+
+    await prisma.category.delete({ where: { id } });
     revalidatePath("/settings/menu");
     return { success: true };
   } catch (error) {
-    return { error: "Error al eliminar la categoría y sus items" };
+    console.error("Delete category error:", error);
+    return { error: "Error al eliminar la categoría" };
   }
 }
 
@@ -106,7 +125,7 @@ export async function createMenuItem(_: any, formData: FormData) {
       data: {
         name: name.trim(),
         description: description?.trim() || null,
-        price: price,
+        price: price, // ✅ Number, not Decimal
         isAvailable: isAvailable ?? true,
         prepTimeMin: prepTimeMin || undefined,
         categoryId,
@@ -116,6 +135,7 @@ export async function createMenuItem(_: any, formData: FormData) {
     revalidatePath("/settings/menu");
     return { success: true };
   } catch (error) {
+    console.error("Create item error:", error);
     return { error: "Error al crear el item" };
   }
 }
@@ -128,12 +148,14 @@ export async function updateMenuItem(_: any, formData: FormData) {
   const isAvailable = formData.get("isAvailable") === "on";
   const prepTimeMinStr = formData.get("prepTimeMin")?.toString();
   const station = formData.get("station")?.toString();
+  const categoryId = formData.get("categoryId")?.toString(); // ← MISSING!
 
   if (!id || !name?.trim()) return { error: "Datos inválidos" };
   if (!priceStr) return { error: "Precio es requerido" };
   if (!station || !["KITCHEN", "BAR"].includes(station)) {
     return { error: "Estación de preparación es requerida" };
   }
+  if (!categoryId) return { error: "Categoría es requerida" }; // ← MISSING!
 
   const price = parseFloat(priceStr);
   if (isNaN(price) || price <= 0) return { error: "Precio inválido" };
@@ -153,11 +175,13 @@ export async function updateMenuItem(_: any, formData: FormData) {
         isAvailable: isAvailable ?? true,
         prepTimeMin: prepTimeMin || undefined,
         station: station as "KITCHEN" | "BAR",
+        categoryId,
       },
     });
     revalidatePath("/settings/menu");
     return { success: true };
   } catch (error) {
+    console.error("Update item error:", error);
     return { error: "Error al actualizar" };
   }
 }
@@ -167,10 +191,20 @@ export async function deleteMenuItem(_: any, formData: FormData) {
   if (!id) return { error: "ID requerido" };
 
   try {
+    // ✅ Check if item has been used in any order
+    const orderItemCount = await prisma.orderItem.count({
+      where: { menuItemId: id },
+    });
+
+    if (orderItemCount > 0) {
+      return { error: "No se puede eliminar. Solo desactívalo." };
+    }
+
     await prisma.menuItem.delete({ where: { id } });
     revalidatePath("/settings/menu");
     return { success: true };
   } catch (error) {
+    console.error("Delete item error:", error);
     return { error: "Error al eliminar" };
   }
 }

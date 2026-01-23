@@ -23,7 +23,7 @@ export function CashierClientWrapper({
       } catch (error) {
         console.error("Failed to refresh tables:", error);
       }
-    }, 10000);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, []);

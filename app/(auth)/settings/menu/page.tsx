@@ -6,7 +6,6 @@ import CategoryForm from "./CategoryForm";
 import MenuItemForm from "./MenuItemForm";
 import MenuTable from "./MenuTable";
 
-// ✅ Helper to convert Decimal to number
 function serializeMenuItem(item: any) {
   return {
     ...item,

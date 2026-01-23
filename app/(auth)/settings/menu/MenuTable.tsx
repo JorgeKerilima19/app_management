@@ -26,7 +26,7 @@ type Props = {
 
 export default function MenuTable({ items, categories }: Props) {
   const [selectedCategory, setSelectedCategory] = useState<string | "all">(
-    "all"
+    "all",
   );
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
 
@@ -135,7 +135,7 @@ function TableRow({
   activeCategories: Category[];
   onEdit: () => void;
 }) {
-  const [, deleteFormAction] = useFormState(deleteMenuItem, { error: "" });
+  const [state, deleteFormAction] = useFormState(deleteMenuItem, { error: "" });
 
   return (
     <tr className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
@@ -175,18 +175,22 @@ function TableRow({
               type="submit"
               className="text-xs text-red-500 hover:underline"
               onClick={(e) => {
+                e.preventDefault();
                 if (
-                  !confirm(
-                    "¿Eliminar este item? Esta acción no se puede deshacer."
+                  confirm(
+                    "¿Eliminar este item? Esta acción no se puede deshacer.",
                   )
                 ) {
-                  e.preventDefault();
+                  deleteFormAction(new FormData(e.currentTarget.form!));
                 }
               }}
             >
               Eliminar
             </button>
           </form>
+          {state.error && (
+            <p className="text-red-500 text-xs mt-1">{state.error}</p>
+          )}
         </div>
       </td>
     </tr>
