@@ -31,8 +31,12 @@ export async function closeRestaurant() {
     throw new Error("No hay resumen diario activo");
   }
 
+  // ✅ CORRECT: Only count actual sales (exclude opening amount)
   const payments = await prisma.payment.findMany({
-    where: { createdAt: { gte: today } },
+    where: {
+      createdAt: { gte: today },
+      check: { status: "CLOSED" },
+    },
   });
 
   let totalCash = 0;
@@ -47,13 +51,14 @@ export async function closeRestaurant() {
     }
   });
 
-  const endingCash = totalCash - toNumber(summary.startingCash);
+  // ✅ Closing cash = Opening + Total Cash Sales
+  const endingCash = toNumber(summary.startingCash) + totalCash;
 
   await prisma.dailySummary.update({
     where: { id: summary.id },
     data: {
-      totalCash: totalCash,
-      totalYape: totalYape,
+      totalCash: totalCash, // ✅ Only sales
+      totalYape: totalYape, // ✅ Only sales
       endingCash: endingCash,
       status: "CLOSED",
       closedById: user.id,
@@ -65,7 +70,11 @@ export async function closeRestaurant() {
   revalidatePath("/dashboard/close");
 }
 
-export async function fetchClosingSummary(categoryId?: string) {
+export async function fetchClosingSummary(
+  categoryId?: string,
+  page: number = 1,
+  itemsPerPage: number = 10,
+) {
   const user = await getCurrentUser();
   if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
     throw new Error("No autorizado");
@@ -74,14 +83,16 @@ export async function fetchClosingSummary(categoryId?: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Daily Summary
   const dailySummary = await prisma.dailySummary.findUnique({
     where: { date: today },
   });
 
-  // Payments
+  // ✅ CORRECT: Only count actual sales
   const payments = await prisma.payment.findMany({
-    where: { createdAt: { gte: today } },
+    where: {
+      createdAt: { gte: today },
+      check: { status: "CLOSED" },
+    },
   });
 
   let totalCash = 0;
@@ -96,27 +107,30 @@ export async function fetchClosingSummary(categoryId?: string) {
     }
   });
 
-  // ✅ FIXED: Fetch items sold TODAY from CLOSED checks
+  // ✅ Paginated items sold
+  const skip = (page - 1) * itemsPerPage;
+
   const itemGroups = await prisma.orderItem.groupBy({
     by: ["menuItemId"],
     where: {
-      // ✅ Filter by OrderItem creation time
       createdAt: { gte: today },
-      // ✅ Only include items from CLOSED checks
       order: {
         check: {
           status: "CLOSED",
           closedAt: { gte: today },
         },
       },
-      // ✅ Optional category filter
       menuItem: categoryId ? { categoryId } : undefined,
     },
     _sum: { quantity: true },
     orderBy: { _sum: { quantity: "desc" } },
   });
 
-  const menuItemIds = itemGroups.map((g) => g.menuItemId);
+  // Apply pagination
+  const paginatedItemGroups = itemGroups.slice(skip, skip + itemsPerPage);
+  const totalItems = itemGroups.length;
+
+  const menuItemIds = paginatedItemGroups.map((g) => g.menuItemId);
   let menuItemsMap = new Map();
   if (menuItemIds.length > 0) {
     const menuItems = await prisma.menuItem.findMany({
@@ -126,12 +140,11 @@ export async function fetchClosingSummary(categoryId?: string) {
     menuItemsMap = new Map(menuItems.map((m) => [m.id, m]));
   }
 
-  const itemsSold = itemGroups.map((g) => ({
+  const itemsSold = paginatedItemGroups.map((g) => ({
     menuItem: menuItemsMap.get(g.menuItemId),
     totalQuantity: g._sum.quantity || 0,
   }));
 
-  // Inventory Changes (last updated today)
   const inventoryChanges = await prisma.inventoryItem.findMany({
     where: {
       updatedAt: { gte: today },
@@ -139,13 +152,11 @@ export async function fetchClosingSummary(categoryId?: string) {
     orderBy: { updatedAt: "desc" },
   });
 
-  // Categories for filter
   const categories = await prisma.category.findMany({
     where: { isActive: true },
     orderBy: { name: "asc" },
   });
 
-  // Void Records
   const voidRecords = await prisma.voidRecord.findMany({
     where: { createdAt: { gte: today } },
     include: { voidedBy: { select: { name: true } } },
@@ -166,9 +177,12 @@ export async function fetchClosingSummary(categoryId?: string) {
       totalYape,
     },
     itemsSold,
+    totalItems,
     inventoryChanges,
     categories,
     voidRecords,
     date: today,
+    currentPage: page,
+    itemsPerPage,
   };
 }

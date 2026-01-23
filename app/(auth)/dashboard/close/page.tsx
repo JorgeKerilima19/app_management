@@ -7,7 +7,7 @@ import CloseClient from "./CloseClient";
 export default async function ClosingDashboardPage({
   searchParams,
 }: {
-  searchParams?: { categoryId?: string };
+  searchParams?: { categoryId?: string; page?: string };
 }) {
   const user = await getCurrentUser();
   if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
@@ -15,7 +15,8 @@ export default async function ClosingDashboardPage({
   }
 
   const categoryId = searchParams?.categoryId;
-  const data = await fetchClosingSummary(categoryId);
+  const page = parseInt(searchParams?.page || "1", 10);
+  const data = await fetchClosingSummary(categoryId, page, 10);
 
   return <CloseClient initialData={data} />;
 }

@@ -27,6 +27,7 @@ type ClosingData = {
     menuItem: MenuItem | null;
     totalQuantity: number;
   }[];
+  totalItems: number;
   inventoryChanges: {
     id: string;
     name: string;
@@ -48,6 +49,8 @@ type ClosingData = {
     createdAt: Date;
   }[];
   date: Date;
+  currentPage: number;
+  itemsPerPage: number;
 };
 
 export default function CloseClient({
@@ -57,7 +60,7 @@ export default function CloseClient({
 }) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
-  const [selectedCategory, setSelectedCategory] = useState<string>(""); // ✅ Client-side state
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
 
   const handleClose = () => {
     startTransition(async () => {
@@ -71,16 +74,32 @@ export default function CloseClient({
     });
   };
 
+  // ✅ Correct closing amount = Total Sales (Cash + Yape)
   const totalSales = initialData.sales.totalCash + initialData.sales.totalYape;
-  const closingAmount =
-    totalSales - (initialData.dailySummary?.startingCash || 0);
+  const closingAmount = totalSales; // ✅ Exclude opening amount
 
-  // ✅ Client-side filtering
+  // Client-side filtering (applied on top of server pagination)
   const filteredItems = selectedCategory
     ? initialData.itemsSold.filter(
         (item) => item.menuItem?.category?.name === selectedCategory,
       )
     : initialData.itemsSold;
+
+  // Pagination controls
+  const totalPages = Math.ceil(
+    initialData.totalItems / initialData.itemsPerPage,
+  );
+  const hasNextPage = initialData.currentPage < totalPages;
+  const hasPrevPage = initialData.currentPage > 1;
+
+  const handlePageChange = (newPage: number) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("page", newPage.toString());
+    if (selectedCategory) {
+      url.searchParams.set("categoryId", selectedCategory);
+    }
+    router.push(url.toString());
+  };
 
   return (
     <div className="space-y-8 p-4 max-w-6xl mx-auto">
@@ -136,9 +155,11 @@ export default function CloseClient({
               </p>
             </div>
             <div className="bg-violet-50 border border-violet-200 rounded-lg p-4 text-center">
-              <h3 className="text-lg font-bold text-violet-800">Cierre</h3>
+              <h3 className="text-lg font-bold text-violet-800">
+                Total Ventas
+              </h3>
               <p className="text-xl md:text-2xl font-bold mt-2 text-gray-900">
-                S/ {closingAmount.toFixed(2)}
+                S/ {closingAmount.toFixed(2)} {/* ✅ Only sales */}
               </p>
             </div>
           </div>
@@ -156,15 +177,20 @@ export default function CloseClient({
       {/* Items Sold */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6">
         <h2 className="text-xl font-semibold text-gray-800 mb-4">
-          Ítems Vendidos (
-          {filteredItems.reduce((sum, item) => sum + item.totalQuantity, 0)})
+          Ítems Vendidos ({initialData.totalItems})
         </h2>
 
-        {/* ✅ Client-Side Category Filter */}
+        {/* Category Filter */}
         <div className="mb-4">
           <div className="flex flex-wrap gap-2">
             <button
-              onClick={() => setSelectedCategory("")}
+              onClick={() => {
+                setSelectedCategory("");
+                const url = new URL(window.location.href);
+                url.searchParams.delete("categoryId");
+                url.searchParams.set("page", "1");
+                router.push(url.toString());
+              }}
               className={`px-3 py-1 rounded-full text-xs font-medium ${
                 !selectedCategory
                   ? "bg-violet-600 text-white"
@@ -176,7 +202,13 @@ export default function CloseClient({
             {initialData.categories.map((cat) => (
               <button
                 key={cat.id}
-                onClick={() => setSelectedCategory(cat.name)}
+                onClick={() => {
+                  setSelectedCategory(cat.name);
+                  const url = new URL(window.location.href);
+                  url.searchParams.set("categoryId", cat.id);
+                  url.searchParams.set("page", "1");
+                  router.push(url.toString());
+                }}
                 className={`px-3 py-1 rounded-full text-xs font-medium ${
                   selectedCategory === cat.name
                     ? "bg-violet-600 text-white"
@@ -192,38 +224,71 @@ export default function CloseClient({
         {filteredItems.length === 0 ? (
           <p className="text-gray-500">No se vendieron ítems hoy.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                    Ítem
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                    Categoría
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                    Platos
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredItems.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {item.menuItem?.name || "Desconocido"}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                      {item.menuItem?.category?.name || "Otro"}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                      {item.totalQuantity}
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Ítem
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Categoría
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Platos
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredItems.map((item, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {item.menuItem?.name || "Desconocido"}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                        {item.menuItem?.category?.name || "Otro"}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                        {item.totalQuantity}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-between items-center mt-4">
+                <button
+                  onClick={() => handlePageChange(initialData.currentPage - 1)}
+                  disabled={!hasPrevPage}
+                  className={`px-4 py-2 rounded ${
+                    !hasPrevPage
+                      ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                      : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  }`}
+                >
+                  Anterior
+                </button>
+                <span className="text-sm text-gray-700">
+                  Página {initialData.currentPage} de {totalPages}
+                </span>
+                <button
+                  onClick={() => handlePageChange(initialData.currentPage + 1)}
+                  disabled={!hasNextPage}
+                  className={`px-4 py-2 rounded ${
+                    !hasNextPage
+                      ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                      : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  }`}
+                >
+                  Siguiente
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 

@@ -9,7 +9,7 @@ import Link from "next/link";
 export default function ReportsPage() {
   const [dateRange, setDateRange] = useState(format(new Date(), "yyyy-MM-dd"));
   const [rangeType, setRangeType] = useState<"day" | "week" | "month" | "all">(
-    "day"
+    "day",
   );
   const [categoryId, setCategoryId] = useState<string | "">("");
   const [page, setPage] = useState(1);
@@ -19,16 +19,12 @@ export default function ReportsPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      console.log(
-        `Fetching report data for date: ${dateRange}, range: ${rangeType}, page: ${page}, category: ${categoryId}`
-      );
       const data = await getReportData({
         dateRange,
         rangeType,
         page,
         categoryId,
       });
-      console.log("Report data received:", data); // Debug log
       setReportData(data);
     } catch (error) {
       console.error("Failed to fetch report:", error);
@@ -48,11 +44,10 @@ export default function ReportsPage() {
 
   const handleWeekChange = () => {
     const today = new Date();
-    // Use date-fns to get start of week correctly
     const start = new Date(today);
     start.setDate(
-      today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1)
-    ); // Monday
+      today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1),
+    );
     start.setHours(0, 0, 0, 0);
     setDateRange(format(start, "yyyy-MM-dd"));
     setRangeType("week");
@@ -74,51 +69,48 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-8">
-      {rangeType === "day" && reportData?.dailyCashFlow && (
+      {/* Daily Summary Card */}
+      {rangeType === "day" && reportData?.dailySummary && (
         <div className="bg-white border border-gray-200 rounded-xl">
           <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-800">
-              Flujo de Caja Diario
-            </h2>
-            <p className="text-gray-600 text-sm">
-              Detalle de apertura y cierre del día
-            </p>
+            <h2 className="text-xl font-bold text-gray-800">Resumen Diario</h2>
+            <p className="text-gray-600 text-sm">Apertura y cierre del día</p>
           </div>
           <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 text-center">
                 <h3 className="text-lg font-bold text-blue-800">Apertura</h3>
                 <p className="text-2xl font-bold mt-2 text-gray-900">
-                  S/ {Number(reportData.dailyCashFlow.openingCash).toFixed(2)}
-                </p>
-                <p className="text-sm text-gray-600 mt-1">
-                  Dinero dejado al inicio
+                  S/ {reportData.dailySummary.startingCash.toFixed(2)}
                 </p>
               </div>
               <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
-                <h3 className="text-lg font-bold text-green-800">Cierre</h3>
+                <h3 className="text-lg font-bold text-green-800">
+                  Ventas Cash
+                </h3>
                 <p className="text-2xl font-bold mt-2 text-gray-900">
-                  S/ {Number(reportData.dailyCashFlow.endingCash).toFixed(2)}
-                </p>
-                <p className="text-sm text-gray-600 mt-1">
-                  Efectivo en caja al finalizar
+                  S/ {reportData.sales.totalCash.toFixed(2)}
                 </p>
               </div>
-            </div>
-
-            <div className="mt-6 bg-gray-50 rounded-lg p-4">
-              <h4 className="font-semibold text-gray-800 mb-2">Cálculo</h4>
-              <p className="text-sm text-gray-700">
-                Cierre = Ventas en Efectivo - Apertura
-                <br />
-                S/ {Number(reportData.dailyCashFlow.endingCash).toFixed(2)} = S/{" "}
-                {Number(reportData.dailyCashFlow.cashSalesForDay).toFixed(2)} -
-                S/ {Number(reportData.dailyCashFlow.openingCash).toFixed(2)}
-              </p>
+              <div className="bg-purple-50 border border-purple-200 rounded-xl p-6 text-center">
+                <h3 className="text-lg font-bold text-purple-800">
+                  Ventas Yape
+                </h3>
+                <p className="text-2xl font-bold mt-2 text-gray-900">
+                  S/ {reportData.sales.totalYape.toFixed(2)}
+                </p>
+              </div>
+              <div className="bg-violet-50 border border-violet-200 rounded-xl p-6 text-center">
+                <h3 className="text-lg font-bold text-violet-800">Cierre</h3>
+                <p className="text-2xl font-bold mt-2 text-gray-900">
+                  S/ {reportData.dailySummary.endingCash.toFixed(2)}
+                </p>
+              </div>
             </div>
           </div>
         </div>
       )}
+
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-violet-600">
           Reporte de Ventas
@@ -225,7 +217,7 @@ export default function ReportsPage() {
             Total:{" "}
             {reportData?.itemsSold.reduce(
               (sum: number, item: any) => sum + item.totalQuantity,
-              0
+              0,
             ) || 0}{" "}
             items
           </p>
@@ -325,7 +317,6 @@ export default function ReportsPage() {
                       {check.closedAt}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {/* Join item names or show a count if preferred */}
                       {check.itemNames.join(", ") || "N/A"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
