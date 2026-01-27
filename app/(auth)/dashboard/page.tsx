@@ -124,11 +124,11 @@ export default async function DashboardPage() {
               <div className="space-y-3">
                 {data.recentOrders
                   .filter(
-                    (order) =>
+                    (order: any) =>
                       order.firstItemName &&
                       order.firstItemName !== "Ítem desconocido",
                   )
-                  .map((order) => (
+                  .map((order: any) => (
                     <div
                       key={order.id}
                       className="flex justify-between text-sm py-2 border-b border-gray-100"
@@ -154,7 +154,7 @@ export default async function DashboardPage() {
               <p className="text-gray-500">Sin anulaciones recientes</p>
             ) : (
               <div className="space-y-3">
-                {data.recentVoids.map((voidRecord) => (
+                {data.recentVoids.map((voidRecord: any) => (
                   <div
                     key={voidRecord.id}
                     className="flex justify-between text-sm py-2 border-b border-gray-100"
@@ -193,7 +193,7 @@ export default async function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {data.topItems.map((item, idx) => (
+                {data.topItems.map((item: any, idx: any) => (
                   <tr key={idx} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {item.menuItem?.name}

@@ -152,7 +152,6 @@ export async function fetchClosingSummary(
     orderBy: { name: "asc" },
   });
 
-  // ✅ Fetch void records and enrich with item details
   const voidRecords = await prisma.voidRecord.findMany({
     where: { createdAt: { gte: today } },
     include: {

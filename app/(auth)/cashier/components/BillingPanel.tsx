@@ -189,7 +189,7 @@ export function BillingPanel({
   >("CASH");
   const [cashAmount, setCashAmount] = useState("");
   const [yapeAmount, setYapeAmount] = useState("");
-  const [receivedAmount, setReceivedAmount] = useState(""); // ✅ New state for received amount
+  const [receivedAmount, setReceivedAmount] = useState("");
   const [isSplitMode, setIsSplitMode] = useState(false);
   const [showVoidItemModal, setShowVoidItemModal] = useState<any>(null);
   const [showVoidOrderModal, setShowVoidOrderModal] = useState(false);
@@ -198,7 +198,6 @@ export function BillingPanel({
 
   const selectedTable = tables.find((t) => t.id === selectedTableId);
 
-  // ✅ useEffect MOVED TO THE TOP - BEFORE ANY CONDITIONAL RETURNS
   useEffect(() => {
     if (selectedTable?.currentCheck?.id) {
       const checkPaymentStatus = async () => {
@@ -209,7 +208,6 @@ export function BillingPanel({
     }
   }, [selectedTable?.currentCheck?.id]);
 
-  // ✅ CONDITIONAL RETURN NOW HAPPENS AFTER ALL HOOKS
   if (!selectedTableId || !selectedTable?.currentCheck) {
     return (
       <div className="w-96 bg-white shadow-lg p-6 text-center text-gray-500">
@@ -218,11 +216,10 @@ export function BillingPanel({
     );
   }
 
-  // ✅ REST OF THE COMPONENT LOGIC
   const check = selectedTable.currentCheck;
   const allItems = check.orders.flatMap((o: any) => o.items);
   const groupedItems = groupItemsByCategory(allItems);
-  const capacity = selectedTable.capacity; // Use table capacity
+  const capacity = selectedTable.capacity;
 
   const handlePrint = () => {
     if (!printRef.current || !check || !selectedTable) return;
@@ -254,6 +251,17 @@ export function BillingPanel({
       </html>
     `);
     printWindow.document.close();
+  };
+
+  const handlePaymentMethodChange = (
+    method: "CASH" | "MOBILE_PAY" | "MIXED",
+  ) => {
+    setPaymentMethod(method);
+    if (method === "CASH") {
+      setYapeAmount("");
+    } else if (method === "MOBILE_PAY") {
+      setCashAmount("");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -313,13 +321,11 @@ export function BillingPanel({
         : cashNum + yapeNum;
   const isTotalMatching = Math.abs(totalPaid - check.total) < 0.01;
 
-  // ✅ Calculate change
   const receivedNum = parseFloat(receivedAmount) || 0;
   const changeAmount = receivedNum - check.total;
 
   return (
     <>
-      {/* Hidden print content */}
       <div style={{ display: "none" }} ref={printRef}>
         <CustomerBillPrint
           tableNumber={selectedTable.number}
@@ -370,7 +376,6 @@ export function BillingPanel({
           🖨️ Imprimir cuenta
         </button>
 
-        {/* Order items */}
         <div className="mb-6">
           <h3 className="font-semibold mb-2 text-gray-800">Órden</h3>
           {groupedItems.map((group) => (
@@ -434,11 +439,12 @@ export function BillingPanel({
               <div className="space-y-2">
                 {(["CASH", "MOBILE_PAY", "MIXED"] as const).map((method) => (
                   <label key={method} className="flex items-center">
+                    {/* ✅ Updated onChange handler */}
                     <input
                       type="radio"
                       name="payment"
                       checked={paymentMethod === method}
-                      onChange={() => setPaymentMethod(method)}
+                      onChange={() => handlePaymentMethodChange(method)}
                       className="mr-2"
                     />
                     {method === "MOBILE_PAY"
@@ -481,7 +487,6 @@ export function BillingPanel({
               </div>
             )}
 
-            {/* ✅ CHANGE CALCULATOR */}
             {paymentMethod === "CASH" && (
               <div className="mb-4">
                 <label className="block text-sm mb-1 text-gray-700">
