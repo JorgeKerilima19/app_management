@@ -7,16 +7,17 @@ import CloseClient from "./CloseClient";
 export default async function ClosingDashboardPage({
   searchParams,
 }: {
-  searchParams?: { categoryId?: string; page?: string };
+  searchParams?: Promise<{ categoryId?: string; page?: string }>;
 }) {
   const user = await getCurrentUser();
   if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
     redirect("/login");
   }
 
-  const categoryId = searchParams?.categoryId;
-  const page = parseInt(searchParams?.page || "1", 10);
-  const data = await fetchClosingSummary(categoryId, page, 10);
+  const params = await searchParams;
+  const categoryId = params?.categoryId;
+  const page = parseInt(params?.page || "1", 10);
 
+  const data = await fetchClosingSummary(categoryId, page, 10);
   return <CloseClient initialData={data} />;
 }

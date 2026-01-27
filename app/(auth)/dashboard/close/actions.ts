@@ -31,7 +31,6 @@ export async function closeRestaurant() {
     throw new Error("No hay resumen diario activo");
   }
 
-  // ✅ CORRECT: Only count actual sales (exclude opening amount)
   const payments = await prisma.payment.findMany({
     where: {
       createdAt: { gte: today },
@@ -51,14 +50,13 @@ export async function closeRestaurant() {
     }
   });
 
-  // ✅ Closing cash = Opening + Total Cash Sales
   const endingCash = toNumber(summary.startingCash) + totalCash;
 
   await prisma.dailySummary.update({
     where: { id: summary.id },
     data: {
-      totalCash: totalCash, // ✅ Only sales
-      totalYape: totalYape, // ✅ Only sales
+      totalCash: totalCash,
+      totalYape: totalYape,
       endingCash: endingCash,
       status: "CLOSED",
       closedById: user.id,
@@ -87,7 +85,6 @@ export async function fetchClosingSummary(
     where: { date: today },
   });
 
-  // ✅ CORRECT: Only count actual sales
   const payments = await prisma.payment.findMany({
     where: {
       createdAt: { gte: today },
@@ -107,7 +104,6 @@ export async function fetchClosingSummary(
     }
   });
 
-  // ✅ Paginated items sold
   const skip = (page - 1) * itemsPerPage;
 
   const itemGroups = await prisma.orderItem.groupBy({
@@ -126,7 +122,6 @@ export async function fetchClosingSummary(
     orderBy: { _sum: { quantity: "desc" } },
   });
 
-  // Apply pagination
   const paginatedItemGroups = itemGroups.slice(skip, skip + itemsPerPage);
   const totalItems = itemGroups.length;
 
@@ -157,10 +152,134 @@ export async function fetchClosingSummary(
     orderBy: { name: "asc" },
   });
 
+  // ✅ Fetch void records and enrich with item details
   const voidRecords = await prisma.voidRecord.findMany({
     where: { createdAt: { gte: today } },
-    include: { voidedBy: { select: { name: true } } },
+    include: {
+      voidedBy: { select: { name: true } },
+    },
     orderBy: { createdAt: "desc" },
+  });
+
+  const orderIds: string[] = [];
+  const orderItemIds: string[] = [];
+  const checkIds: string[] = [];
+
+  voidRecords.forEach((record) => {
+    if (record.target === "ORDER") orderIds.push(record.targetId);
+    else if (record.target === "ORDER_ITEM") orderItemIds.push(record.targetId);
+    else if (record.target === "CHECK") checkIds.push(record.targetId);
+  });
+
+  // Fetch order items
+  const orderItemsMap = new Map<string, { name: string; quantity: number }>();
+  if (orderItemIds.length > 0) {
+    const items = await prisma.orderItem.findMany({
+      where: { id: { in: orderItemIds } },
+      select: {
+        id: true,
+        quantity: true,
+        menuItem: { select: { name: true } },
+      },
+    });
+    items.forEach((item) => {
+      orderItemsMap.set(item.id, {
+        name: item.menuItem.name,
+        quantity: item.quantity,
+      });
+    });
+  }
+
+  // Fetch orders
+  const ordersMap = new Map<string, { name: string; quantity: number }[]>();
+  if (orderIds.length > 0) {
+    const orders = await prisma.order.findMany({
+      where: { id: { in: orderIds } },
+      include: {
+        items: {
+          select: { quantity: true, menuItem: { select: { name: true } } },
+        },
+      },
+    });
+    orders.forEach((order) => {
+      const items = order.items.map((i) => ({
+        name: i.menuItem.name,
+        quantity: i.quantity,
+      }));
+      ordersMap.set(order.id, items);
+    });
+  }
+
+  // Fetch checks
+  const checksMap = new Map<string, { name: string; quantity: number }[]>();
+  if (checkIds.length > 0) {
+    const checks = await prisma.check.findMany({
+      where: { id: { in: checkIds } },
+      include: {
+        orders: {
+          include: {
+            items: {
+              select: { quantity: true, menuItem: { select: { name: true } } },
+            },
+          },
+        },
+      },
+    });
+    checks.forEach((check) => {
+      const allItems: { name: string; quantity: number }[] = [];
+      check.orders.forEach((order) => {
+        order.items.forEach((item) => {
+          allItems.push({ name: item.menuItem.name, quantity: item.quantity });
+        });
+      });
+      checksMap.set(check.id, allItems);
+    });
+  }
+
+  // ✅ Build enriched void records
+  const processedVoidRecords = voidRecords.map((record) => {
+    let targetDetails = "";
+    let totalVoided = 0;
+
+    if (record.target === "ORDER_ITEM") {
+      const item = orderItemsMap.get(record.targetId);
+      if (item) {
+        targetDetails = `${item.name} (x${item.quantity})`;
+        totalVoided = item.quantity;
+      } else {
+        targetDetails = "Desconocido";
+      }
+    } else if (record.target === "ORDER") {
+      const items = ordersMap.get(record.targetId) || [];
+      if (items.length > 0) {
+        targetDetails = items
+          .map((i) => `${i.name} (x${i.quantity})`)
+          .join(", ");
+        totalVoided = items.reduce((sum, i) => sum + i.quantity, 0);
+      } else {
+        targetDetails = "(sin items)";
+      }
+    } else if (record.target === "CHECK") {
+      const items = checksMap.get(record.targetId) || [];
+      if (items.length > 0) {
+        targetDetails = items
+          .map((i) => `${i.name} (x${i.quantity})`)
+          .join(", ");
+        totalVoided = items.reduce((sum, i) => sum + i.quantity, 0);
+      } else {
+        targetDetails = "(sin items)";
+      }
+    }
+
+    return {
+      id: record.id,
+      voidedBy: record.voidedBy,
+      target: record.target,
+      targetDetails,
+      totalVoided,
+      reason: record.reason,
+      createdAt: record.createdAt,
+    };
   });
 
   return {
@@ -180,7 +299,7 @@ export async function fetchClosingSummary(
     totalItems,
     inventoryChanges,
     categories,
-    voidRecords,
+    voidRecords: processedVoidRecords,
     date: today,
     currentPage: page,
     itemsPerPage,

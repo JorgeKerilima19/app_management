@@ -45,6 +45,8 @@ type ClosingData = {
     id: string;
     voidedBy: { name: string } | null;
     target: string;
+    targetDetails: string;
+    totalVoided: number;
     reason: string;
     createdAt: Date;
   }[];
@@ -74,18 +76,15 @@ export default function CloseClient({
     });
   };
 
-  // ✅ Correct closing amount = Total Sales (Cash + Yape)
   const totalSales = initialData.sales.totalCash + initialData.sales.totalYape;
-  const closingAmount = totalSales; // ✅ Exclude opening amount
+  const closingAmount = totalSales;
 
-  // Client-side filtering (applied on top of server pagination)
   const filteredItems = selectedCategory
     ? initialData.itemsSold.filter(
         (item) => item.menuItem?.category?.name === selectedCategory,
       )
     : initialData.itemsSold;
 
-  // Pagination controls
   const totalPages = Math.ceil(
     initialData.totalItems / initialData.itemsPerPage,
   );
@@ -159,7 +158,7 @@ export default function CloseClient({
                 Total Ventas
               </h3>
               <p className="text-xl md:text-2xl font-bold mt-2 text-gray-900">
-                S/ {closingAmount.toFixed(2)} {/* ✅ Only sales */}
+                S/ {closingAmount.toFixed(2)}
               </p>
             </div>
           </div>
@@ -180,7 +179,6 @@ export default function CloseClient({
           Ítems Vendidos ({initialData.totalItems})
         </h2>
 
-        {/* Category Filter */}
         <div className="mb-4">
           <div className="flex flex-wrap gap-2">
             <button
@@ -258,7 +256,6 @@ export default function CloseClient({
               </table>
             </div>
 
-            {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex justify-between items-center mt-4">
                 <button
@@ -356,6 +353,12 @@ export default function CloseClient({
                     Tipo
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Detalles
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Total anulados
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                     Motivo
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
@@ -371,6 +374,12 @@ export default function CloseClient({
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                       {record.target}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      {record.targetDetails}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {record.totalVoided}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                       {record.reason}
