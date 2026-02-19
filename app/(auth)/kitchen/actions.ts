@@ -1,9 +1,11 @@
-// app/kitchen/actions.ts
+//app/(auth)/kitchen/actions.ts
+
 "use server";
 
 import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { deductInventoryForOrderItem } from "@/lib/inventory";
 
 export type KitchenOrder = {
   id: string;
@@ -51,7 +53,7 @@ export async function fetchActiveKitchenOrders(): Promise<KitchenOrder[]> {
           id: true,
           quantity: true,
           notes: true,
-          createdAt: true, // ✅ Get item creation time
+          createdAt: true,
           menuItem: {
             select: {
               name: true,
@@ -84,7 +86,7 @@ export async function fetchActiveKitchenOrders(): Promise<KitchenOrder[]> {
     tables.map((t) => [
       t.id,
       { number: t.number, name: t.name || `Mesa ${t.number}` },
-    ])
+    ]),
   );
 
   return orders.map((order) => {
@@ -146,7 +148,6 @@ export async function fetchPreparedToday(): Promise<PreparedOrder[]> {
     orderBy: { updatedAt: "desc" },
   });
 
-  // Get table names
   const tableIds = new Set<string>();
   orders.forEach((order) => {
     const ids = JSON.parse(order.check.tableIds as string) as string[];
@@ -158,20 +159,19 @@ export async function fetchPreparedToday(): Promise<PreparedOrder[]> {
     select: { id: true, name: true, number: true },
   });
   const tableMap = new Map(
-    tables.map((t) => [t.id, t.name || `Mesa ${t.number}`])
+    tables.map((t) => [t.id, t.name || `Mesa ${t.number}`]),
   );
 
   return orders.map((order) => {
     const tableIds = JSON.parse(order.check.tableIds as string);
     const tableName = tableMap.get(tableIds[0]) || "Mesa";
 
-    // Format items as string: "Lomo (x1), Beer (x2)"
     const itemsStr = order.items
       .map(
         (item) =>
           `${item.menuItem.name}${
             item.quantity > 1 ? ` (x${item.quantity})` : ""
-          }`
+          }`,
       )
       .join(", ");
 
@@ -181,7 +181,7 @@ export async function fetchPreparedToday(): Promise<PreparedOrder[]> {
       items: itemsStr,
       waiterName: order.orderedBy.name,
       orderedAt: order.createdAt,
-      deliveredAt: order.updatedAt, // ✅ now correctly updated
+      deliveredAt: order.updatedAt,
     };
   });
 }
@@ -200,10 +200,24 @@ export async function markOrderAsReady(formData: FormData) {
     data: { status: "READY" },
   });
 
+  try {
+    const result = await deductInventoryForOrderItem(orderItemId);
+
+    if (result && !result.skipped) {
+      console.log(
+        `Inventory deducted for ${result.menuItemName}:`,
+        result.deductions,
+      );
+    }
+  } catch (error) {
+    console.error("Failed to deduct inventory:", error);
+  }
+
   const orderItem = await prisma.orderItem.findUnique({
     where: { id: orderItemId },
     select: { orderId: true },
   });
+
   if (orderItem) {
     await prisma.order.update({
       where: { id: orderItem.orderId },
@@ -212,4 +226,5 @@ export async function markOrderAsReady(formData: FormData) {
   }
 
   revalidatePath("/kitchen");
+  return { success: true };
 }

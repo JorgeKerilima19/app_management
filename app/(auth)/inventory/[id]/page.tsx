@@ -75,7 +75,7 @@ export default async function EditInventoryItemPage({
               name="quantity"
               step="0.01"
               min="0"
-              defaultValue={item.quantity}
+              defaultValue={item.currentQuantity}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black bg-white"
               required
             />
@@ -90,6 +90,37 @@ export default async function EditInventoryItemPage({
               defaultValue={item.unit}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black bg-white"
               required
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Alerta de stock bajo (opcional)
+            </label>
+            <input
+              type="number"
+              name="lowStockThreshold"
+              step="0.01"
+              min="0"
+              defaultValue={item.lowStockThreshold ?? ""}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black bg-white"
+              placeholder="ejm. 10"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Costo por unidad (opcional)
+            </label>
+            <input
+              type="number"
+              name="costPerUnit"
+              step="0.01"
+              min="0"
+              defaultValue={item.costPerUnit?.toString() ?? ""}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black bg-white"
+              placeholder="ejm. 2.50"
             />
           </div>
         </div>

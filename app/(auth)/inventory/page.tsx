@@ -54,6 +54,9 @@ export default async function InventoryPage() {
                   Categoría
                 </th>
                 <th className="text-left p-3 font-medium text-gray-700">
+                  Estado
+                </th>
+                <th className="text-left p-3 font-medium text-gray-700">
                   Actualizado
                 </th>
                 <th className="text-right p-3 font-medium text-gray-700">
@@ -62,45 +65,86 @@ export default async function InventoryPage() {
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
-                <tr
-                  key={item.id}
-                  className="border-b border-gray-100 hover:bg-gray-50"
-                >
-                  <td className="p-3">
-                    <div className="font-medium text-gray-900">{item.name}</div>
-                    {item.notes && (
-                      <div className="text-sm text-gray-500">{item.notes}</div>
-                    )}
-                  </td>
-                  <td className="p-3">
-                    <span className="font-mono text-gray-900">
-                      {item.quantity} {item.unit}
-                    </span>
-                  </td>
-                  <td className="p-3 text-gray-700">{item.unit}</td>
-                  <td className="p-3">
-                    {item.category ? (
-                      <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-sm">
-                        {item.category}
+              {items.map((item) => {
+                // ✅ Low-stock logic
+                const isLowStock =
+                  item.lowStockThreshold !== null &&
+                  item.currentQuantity <= item.lowStockThreshold;
+                const isOutOfStock = item.currentQuantity <= 0;
+
+                return (
+                  <tr
+                    key={item.id}
+                    className={`border-b border-gray-100 hover:bg-gray-50 ${
+                      isOutOfStock
+                        ? "bg-red-50"
+                        : isLowStock
+                          ? "bg-amber-50"
+                          : ""
+                    }`}
+                  >
+                    <td className="p-3">
+                      <div className="font-medium text-gray-900">
+                        {item.name}
+                      </div>
+                      {item.notes && (
+                        <div className="text-sm text-gray-500">
+                          {item.notes}
+                        </div>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <span
+                        className={`font-mono ${
+                          isOutOfStock
+                            ? "text-red-600 font-bold"
+                            : isLowStock
+                              ? "text-amber-600 font-semibold"
+                              : "text-gray-900"
+                        }`}
+                      >
+                        {item.currentQuantity.toFixed(2)} {item.unit}
                       </span>
-                    ) : (
-                      <span className="text-gray-400">—</span>
-                    )}
-                  </td>
-                  <td className="p-3 text-sm text-gray-500">
-                    {new Date(item.updatedAt).toLocaleDateString()}
-                  </td>
-                  <td className="p-3 text-right">
-                    <Link
-                      href={`/inventory/${item.id}`}
-                      className="text-violet-600 hover:text-violet-800 font-medium"
-                    >
-                      Editar
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="p-3 text-gray-700">{item.unit}</td>
+                    <td className="p-3">
+                      {item.category ? (
+                        <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-sm">
+                          {item.category}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      {isOutOfStock ? (
+                        <span className="px-2 py-0.5 bg-red-100 text-red-800 rounded text-xs font-medium">
+                          Agotado
+                        </span>
+                      ) : isLowStock ? (
+                        <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-xs font-medium">
+                          ⚠️ Bajo ({item.lowStockThreshold} {item.unit})
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-green-100 text-green-800 rounded text-xs font-medium">
+                          ✅ En stock
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-3 text-sm text-gray-500">
+                      {new Date(item.updatedAt).toLocaleDateString()}
+                    </td>
+                    <td className="p-3 text-right">
+                      <Link
+                        href={`/inventory/${item.id}`}
+                        className="text-violet-600 hover:text-violet-800 font-medium text-sm"
+                      >
+                        Editar
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

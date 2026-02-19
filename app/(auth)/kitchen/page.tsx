@@ -1,4 +1,3 @@
-// app/kitchen/page.tsx
 import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { fetchActiveKitchenOrders, fetchPreparedToday } from "./actions";

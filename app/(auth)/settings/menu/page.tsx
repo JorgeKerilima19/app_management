@@ -22,16 +22,19 @@ export default async function MenuSettingsPage() {
     redirect("/login");
   }
 
-  const categories = await prisma.category.findMany({
-    orderBy: { name: "asc" },
-  });
+  // ✅ Fetch all required data
+  const [categories, menuItems, inventoryItems] = await Promise.all([
+    prisma.category.findMany({ orderBy: { name: "asc" } }),
+    prisma.menuItem.findMany({
+      include: { category: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.inventoryItem.findMany({
+      where: { currentQuantity: { gt: 0 } }, // Only items with stock
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
-  const menuItems = await prisma.menuItem.findMany({
-    include: { category: true },
-    orderBy: { name: "asc" },
-  });
-
-  // ✅ Convert Decimal → number
   const serializedItems = menuItems.map(serializeMenuItem);
 
   return (
@@ -51,27 +54,24 @@ export default async function MenuSettingsPage() {
       {/* Categorías */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Categorías</h2>{" "}
-          {/* ✅ text-gray-900 */}
+          <h2 className="text-lg font-semibold text-gray-900">Categorías</h2>
           <CategoryForm isEdit={false} />
         </div>
         {categories.length === 0 ? (
           <p className="text-gray-500 text-sm">No hay categorías creadas.</p>
         ) : (
           <div className="grid grid-cols-1 gap-3">
-            {" "}
-            {/* ✅ full width */}
             {categories.map((cat) => (
               <div
                 key={cat.id}
-                className={`p-3 border rounded flex justify-between items-center ${cat.isActive
+                className={`p-3 border rounded flex justify-between items-center ${
+                  cat.isActive
                     ? "border-gray-200"
                     : "border-gray-200 bg-gray-50"
-                  }`}
+                }`}
               >
                 <span
-                  className={`text-gray-900 ${cat.isActive ? "" : "line-through text-gray-500"
-                    }`}
+                  className={`text-gray-900 ${cat.isActive ? "" : "line-through text-gray-500"}`}
                 >
                   {cat.name}
                 </span>
@@ -88,7 +88,11 @@ export default async function MenuSettingsPage() {
           <h2 className="text-lg font-semibold text-gray-900">
             Items del Menú
           </h2>
-          <MenuItemForm categories={categories} isEdit={false} />
+          <MenuItemForm
+            categories={categories}
+            inventoryItems={inventoryItems}
+            isEdit={false}
+          />
         </div>
         {categories.length === 0 ? (
           <p className="text-red-500 text-sm">
@@ -97,7 +101,11 @@ export default async function MenuSettingsPage() {
         ) : serializedItems.length === 0 ? (
           <p className="text-gray-500 text-sm">No hay items en el menú.</p>
         ) : (
-          <MenuTable items={serializedItems} categories={categories} />
+          <MenuTable
+            items={serializedItems}
+            categories={categories}
+            inventoryItems={inventoryItems}
+          />
         )}
       </div>
     </div>

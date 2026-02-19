@@ -28,6 +28,8 @@ model User {
   voidRecords          VoidRecord[]
   openedDailySummaries DailySummary[] @relation("DailySummaryOpenedBy")
   closedDailySummaries DailySummary[] @relation("DailySummaryClosedBy")
+
+  inventoryTransactions InventoryTransaction[]
 }
 
 enum Role {
@@ -93,6 +95,8 @@ model MenuItem {
   orderItems  OrderItem[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+
+  recipeItems RecipeItem[]
 }
 
 model Check {
@@ -227,14 +231,20 @@ enum VoidTarget {
 }
 
 model InventoryItem {
-  id        String   @id @default(cuid())
-  name      String
-  quantity  Float    @default(0)
-  unit      String
-  category  String?
-  notes     String?
+  id                String   @id @default(cuid())
+  name              String
+  currentQuantity   Float    @default(0) // Renamed for clarity
+  unit              String // Base unit: "kg", "L", "units", etc.
+  category          String?
+  lowStockThreshold Float? // Alert when below this value
+  costPerUnit       Decimal? // For COGS calculations
+  notes             String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  recipeItems  RecipeItem[]
+  transactions InventoryTransaction[]
 }
 
 model PaymentSummary {
@@ -274,4 +284,50 @@ model DailySummary {
 enum DailySummaryStatus {
   OPEN
   CLOSED
+}
+
+model RecipeItem {
+  id              String        @id @default(cuid())
+  menuItemId      String
+  menuItem        MenuItem      @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  inventoryItemId String
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id])
+
+  quantityRequired Float // Amount needed per 1 unit of menuItem
+  unit             String // Unit for this line (should match inventoryItem.unit)
+  isOptional       Boolean @default(false) // For modifiers/add-ons
+  note             String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([menuItemId, inventoryItemId])
+  @@index([inventoryItemId])
+}
+
+model InventoryTransaction {
+  id              String        @id @default(cuid())
+  inventoryItemId String
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id])
+
+  type           TransactionType
+  quantityChange Float // Positive = restock, Negative = deduction
+  referenceModel String? // "OrderItem", "ManualAdjustment", etc.
+  referenceId    String? // ID of the related record
+  reason         String?
+
+  performedById String?
+  performedBy   User?   @relation(fields: [performedById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([inventoryItemId, createdAt])
+}
+
+enum TransactionType {
+  SALE_DEDUCTION
+  RESTOCK
+  MANUAL_ADJUSTMENT
+  WASTE
+  RETURN
 }

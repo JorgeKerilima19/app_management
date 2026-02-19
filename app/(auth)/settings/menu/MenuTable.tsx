@@ -18,13 +18,25 @@ type MenuItem = {
   station: "KITCHEN" | "BAR";
   category: { name: string };
 };
+type InventoryItem = {
+  id: string;
+  name: string;
+  currentQuantity: number;
+  unit: string;
+  category: string | null;
+};
 
 type Props = {
   items: MenuItem[];
   categories: Category[];
+  inventoryItems: InventoryItem[];
 };
 
-export default function MenuTable({ items, categories }: Props) {
+export default function MenuTable({
+  items,
+  categories,
+  inventoryItems,
+}: Props) {
   const [selectedCategory, setSelectedCategory] = useState<string | "all">(
     "all",
   );
@@ -38,7 +50,7 @@ export default function MenuTable({ items, categories }: Props) {
 
   return (
     <>
-      {/* Category Filter — Buttons */}
+      {/* Category Filter */}
       <div className="mb-4 flex flex-wrap gap-2">
         <button
           onClick={() => setSelectedCategory("all")}
@@ -116,6 +128,7 @@ export default function MenuTable({ items, categories }: Props) {
         <MenuItemModal
           item={editingItem}
           categories={activeCategories}
+          inventoryItems={inventoryItems}
           onClose={() => setEditingItem(null)}
         />
       )}
@@ -123,7 +136,6 @@ export default function MenuTable({ items, categories }: Props) {
   );
 }
 
-// ✅ Separate row component to manage useFormState per row
 function TableRow({
   item,
   index,

@@ -1,15 +1,9 @@
 // app/inventory/actions.ts
-"use server";
+"use server"
 
-import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
-
-function toNumber(value: any): number {
-  if (value == null) return 0;
-  if (typeof value === "number") return value;
-  return parseFloat(value.toString());
-}
 
 export async function createInventoryItem(formData: FormData) {
   const user = await getCurrentUser();
@@ -18,10 +12,13 @@ export async function createInventoryItem(formData: FormData) {
   }
 
   const name = (formData.get("name") as string)?.trim();
-  const quantityStr = formData.get("quantity") as string;
+  const quantityStr = formData.get("quantity") as string; // ✅ Form field name
   const unit = (formData.get("unit") as string)?.trim();
   const category = (formData.get("category") as string)?.trim() || null;
   const notes = (formData.get("notes") as string)?.trim() || null;
+
+  const lowStockStr = formData.get("lowStockThreshold") as string;
+  const costStr = formData.get("costPerUnit") as string;
 
   if (!name || !quantityStr || !unit) {
     throw new Error("Nombre, cantidad y unidad son requeridos");
@@ -35,10 +32,12 @@ export async function createInventoryItem(formData: FormData) {
   await prisma.inventoryItem.create({
     data: {
       name,
-      quantity,
+      currentQuantity: quantity, // ✅ Map form "quantity" → schema "currentQuantity"
       unit,
       category,
       notes,
+      lowStockThreshold: lowStockStr ? parseFloat(lowStockStr) : null,
+      costPerUnit: costStr ? parseFloat(costStr) : null,
     },
   });
 
@@ -53,10 +52,14 @@ export async function updateInventoryItem(formData: FormData) {
 
   const id = formData.get("id")?.toString();
   const name = formData.get("name")?.toString();
-  const quantityStr = formData.get("quantity")?.toString();
+  const quantityStr = formData.get("quantity")?.toString(); // ✅ Form field name
   const unit = formData.get("unit")?.toString();
   const category = formData.get("category")?.toString();
   const notes = formData.get("notes")?.toString();
+
+  // ✅ New optional fields
+  const lowStockStr = formData.get("lowStockThreshold") as string;
+  const costStr = formData.get("costPerUnit") as string;
 
   if (!id || !name || !quantityStr || !unit) {
     throw new Error("Nombre, cantidad y unidad son requeridos");
@@ -72,10 +75,12 @@ export async function updateInventoryItem(formData: FormData) {
       where: { id },
       data: {
         name,
-        quantity,
+        currentQuantity: quantity, // ✅ Map form "quantity" → schema "currentQuantity"
         unit,
         category: category?.trim() || null,
         notes: notes?.trim() || null,
+        lowStockThreshold: lowStockStr ? parseFloat(lowStockStr) : null,
+        costPerUnit: costStr ? parseFloat(costStr) : null,
       },
     });
     revalidatePath("/inventory");

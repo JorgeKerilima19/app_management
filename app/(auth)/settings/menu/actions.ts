@@ -3,6 +3,7 @@
 
 import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 
 function toNumber(value: any): number {
   if (value == null) return 0;
@@ -191,7 +192,6 @@ export async function deleteMenuItem(_: any, formData: FormData) {
   if (!id) return { error: "ID requerido" };
 
   try {
-    // ✅ Check if item has been used in any order
     const orderItemCount = await prisma.orderItem.count({
       where: { menuItemId: id },
     });
@@ -207,4 +207,127 @@ export async function deleteMenuItem(_: any, formData: FormData) {
     console.error("Delete item error:", error);
     return { error: "Error al eliminar" };
   }
+}
+
+export async function saveRecipeItems(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
+    throw new Error("No autorizado");
+  }
+
+  const menuItemId = formData.get("menuItemId")?.toString();
+  if (!menuItemId) throw new Error("MenuItem ID requerido");
+
+  const recipeEntries: Array<{
+    inventoryItemId: string;
+    quantity: number;
+    unit: string;
+    note?: string;
+  }> = [];
+
+  for (const [key, value] of formData.entries()) {
+    if (key.startsWith("ingredient-") && value) {
+      const inventoryItemId = key.replace("ingredient-", "");
+      const quantity = parseFloat(value as string);
+      const unit = (formData.get(`unit-${inventoryItemId}`) as string) || "";
+      const note =
+        (formData.get(`note-${inventoryItemId}`) as string) || undefined;
+
+      if (!isNaN(quantity) && quantity > 0) {
+        recipeEntries.push({ inventoryItemId, quantity, unit, note });
+      }
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.recipeItem.deleteMany({ where: { menuItemId } });
+
+    if (recipeEntries.length > 0) {
+      await tx.recipeItem.createMany({
+        data: recipeEntries.map(
+          ({ inventoryItemId, quantity, unit, note }) => ({
+            menuItemId,
+            inventoryItemId,
+            quantityRequired: quantity,
+            unit,
+            note,
+          }),
+        ),
+      });
+    }
+  });
+
+  revalidatePath("/settings/menu");
+  return { success: true };
+}
+
+export async function getRecipeItems(menuItemId: string) {
+  return await prisma.recipeItem.findMany({
+    where: { menuItemId },
+    include: { inventoryItem: true },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+export async function updateRecipeItem(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
+    throw new Error("No autorizado");
+  }
+
+  const menuItemId = formData.get("menuItemId")?.toString();
+  const inventoryItemId = formData.get("inventoryItemId")?.toString();
+  const quantityStr = formData.get("quantityRequired")?.toString();
+  const note = formData.get("note")?.toString() || null;
+
+  if (!menuItemId || !inventoryItemId || !quantityStr) {
+    throw new Error("Datos incompletos");
+  }
+
+  const quantityRequired = parseFloat(quantityStr);
+  if (isNaN(quantityRequired) || quantityRequired <= 0) {
+    throw new Error("Cantidad inválida");
+  }
+
+  await prisma.recipeItem.update({
+    where: {
+      menuItemId_inventoryItemId: {
+        menuItemId,
+        inventoryItemId,
+      },
+    },
+    data: {
+      quantityRequired,
+      note,
+    },
+  });
+
+  revalidatePath("/settings/menu");
+  return { success: true };
+}
+
+export async function deleteRecipeItem(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
+    throw new Error("No autorizado");
+  }
+
+  const menuItemId = formData.get("menuItemId")?.toString();
+  const inventoryItemId = formData.get("inventoryItemId")?.toString();
+
+  if (!menuItemId || !inventoryItemId) {
+    throw new Error("Datos incompletos");
+  }
+
+  await prisma.recipeItem.delete({
+    where: {
+      menuItemId_inventoryItemId: {
+        menuItemId,
+        inventoryItemId,
+      },
+    },
+  });
+
+  revalidatePath("/settings/menu");
+  return { success: true };
 }

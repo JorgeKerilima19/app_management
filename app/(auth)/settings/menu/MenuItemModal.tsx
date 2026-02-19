@@ -4,6 +4,7 @@
 import { useFormState } from "react-dom";
 import { useEffect } from "react";
 import { updateMenuItem } from "./actions";
+import RecipeEditor from "./RecipeEditor";
 
 type Category = { id: string; name: string; isActive: boolean };
 type MenuItem = {
@@ -16,14 +17,23 @@ type MenuItem = {
   categoryId: string;
   station: "KITCHEN" | "BAR";
 };
+type InventoryItem = {
+  id: string;
+  name: string;
+  currentQuantity: number;
+  unit: string;
+  category: string | null;
+};
 
 export default function MenuItemModal({
   item,
   categories,
+  inventoryItems,
   onClose,
 }: {
   item: MenuItem;
   categories: Category[];
+  inventoryItems: InventoryItem[];
   onClose: () => void;
 }) {
   const [state, formAction] = useFormState(updateMenuItem, { error: "" });
@@ -36,12 +46,13 @@ export default function MenuItemModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-        <div className="p-4 border-b border-gray-200">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="p-4 border-b border-gray-200 sticky top-0 bg-white">
           <h3 className="text-lg font-semibold text-gray-900">
             Editar Item del Menú
           </h3>
         </div>
+
         <form action={formAction} className="p-4 space-y-4">
           <input type="hidden" name="id" value={item.id} />
 
@@ -73,7 +84,7 @@ export default function MenuItemModal({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            {/* Category — ✅ Allow all categories */}
+            {/* Category */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Categoría *
@@ -155,9 +166,17 @@ export default function MenuItemModal({
             </label>
           </div>
 
+          {/* ✅ Recipe Editor Section */}
+          <div className="border-t border-gray-200 pt-4">
+            <RecipeEditor
+              menuItemId={item.id}
+              inventoryItems={inventoryItems}
+            />
+          </div>
+
           {state.error && <p className="text-red-500 text-sm">{state.error}</p>}
 
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3 pt-2 sticky bottom-0 bg-white border-t border-gray-200 py-3">
             <button
               type="button"
               onClick={onClose}
