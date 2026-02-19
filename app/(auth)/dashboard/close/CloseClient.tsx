@@ -5,8 +5,10 @@ import { useState, useTransition } from "react";
 import { closeRestaurant } from "./actions";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import * as XLSX from "xlsx";
 
 type MenuItem = {
+  price: any;
   id: string;
   name: string;
   category: { name: string } | null;
@@ -26,6 +28,7 @@ type ClosingData = {
   itemsSold: {
     menuItem: MenuItem | null;
     totalQuantity: number;
+    totalSales: number;
   }[];
   totalItems: number;
   inventoryChanges: {
@@ -100,6 +103,166 @@ export default function CloseClient({
     router.push(url.toString());
   };
 
+  const exportToExcel = () => {
+    const worksheetData: any[][] = [];
+
+    worksheetData.push(["REPORTE DE CIERRE DIARIO"]);
+    worksheetData.push([
+      `Fecha: ${initialData.date.toLocaleDateString("es-PE")}`,
+    ]);
+    worksheetData.push([]);
+
+    worksheetData.push(["RESUMEN DIARIO"]);
+    worksheetData.push(["Concepto", "Monto (S/)"]);
+    worksheetData.push([
+      "Apertura",
+      initialData.dailySummary?.startingCash ?? 0,
+    ]);
+    worksheetData.push(["Total Ventas Cash", initialData.sales.totalCash]);
+    worksheetData.push(["Total Ventas Yape", initialData.sales.totalYape]);
+    worksheetData.push([
+      "Total Ventas",
+      initialData.sales.totalCash + initialData.sales.totalYape,
+    ]);
+    worksheetData.push([]);
+
+    worksheetData.push(["ÍTEMS VENDIDOS"]);
+    worksheetData.push([
+      "Ítem",
+      "Categoría",
+      "Cantidad",
+      "Precio Unitario (S/)",
+      "Total (S/)",
+    ]);
+
+    initialData.itemsSold.forEach((item) => {
+      if (item.menuItem) {
+        const total = item.totalQuantity * item.menuItem.price;
+        worksheetData.push([
+          item.menuItem.name,
+          item.menuItem.category?.name || "Otro",
+          item.totalQuantity,
+          item.menuItem.price,
+          total,
+        ]);
+      }
+    });
+    worksheetData.push([]);
+
+    if (initialData.voidRecords.length > 0) {
+      worksheetData.push(["ANULACIONES"]);
+      worksheetData.push([
+        "Personal",
+        "Tipo",
+        "Detalles",
+        "Total Anulados",
+        "Motivo",
+      ]);
+
+      initialData.voidRecords.forEach((record) => {
+        worksheetData.push([
+          record.voidedBy?.name || "Desconocido",
+          record.target,
+          record.targetDetails,
+          record.totalVoided,
+          record.reason,
+        ]);
+      });
+      worksheetData.push([]);
+    }
+
+    worksheetData.push(["TOTALES FINALES"]);
+    worksheetData.push(["Total Ítems Vendidos", initialData.totalItems]);
+    worksheetData.push([
+      "Total Ítems Anulados",
+      initialData.voidRecords.reduce((sum, r) => sum + r.totalVoided, 0),
+    ]);
+    worksheetData.push(["Total Cash", initialData.sales.totalCash]);
+    worksheetData.push(["Total Yape", initialData.sales.totalYape]);
+    worksheetData.push([
+      "Cierre de ventas",
+      initialData.sales.totalCash + initialData.sales.totalYape,
+    ]);
+
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+
+    const colWidths =
+      worksheetData[0]?.map((_, i) => {
+        const maxWidth = Math.max(
+          ...worksheetData.map((row) => (row[i] ? String(row[i]).length : 0)),
+        );
+        return { wch: Math.min(30, Math.max(10, maxWidth + 2)) };
+      }) || [];
+
+    worksheet["!cols"] = colWidths;
+
+    const boldCells = new Set<string>();
+
+    let rowIndex = 0;
+    while (rowIndex < worksheetData.length) {
+      const row = worksheetData[rowIndex];
+
+      // Skip empty rows
+      if (row.length === 0 || (row.length === 1 && row[0] === "")) {
+        rowIndex++;
+        continue;
+      }
+
+      if (
+        row.length === 1 &&
+        typeof row[0] === "string" &&
+        row[0].toUpperCase() === row[0]
+      ) {
+        boldCells.add(`A${rowIndex + 1}`);
+      } else if (
+        rowIndex > 0 &&
+        worksheetData[rowIndex - 1].length === 0 && // Previous row is empty (section start)
+        row.some((cell) => typeof cell === "string")
+      ) {
+        // Bold all cells in this header row
+        for (let colIndex = 0; colIndex < row.length; colIndex++) {
+          const colLetter = String.fromCharCode(65 + colIndex); // A, B, C...
+          boldCells.add(`${colLetter}${rowIndex + 1}`);
+        }
+      } else if (
+        (row.length >= 2 &&
+          typeof row[0] === "string" &&
+          row[0].includes("Total")) ||
+        row[0] === "Cierre de ventas"
+      ) {
+        boldCells.add(`A${rowIndex + 1}`);
+        if (row[0] === "Cierre de ventas") {
+          boldCells.add(`B${rowIndex + 1}`);
+        }
+      }
+
+      rowIndex++;
+    }
+
+    boldCells.forEach((cellRef) => {
+      if (worksheet[cellRef]) {
+        worksheet[cellRef].s = { font: { bold: true } };
+      } else {
+        worksheet[cellRef] = {
+          t: "s",
+          v:
+            worksheetData[parseInt(cellRef.match(/\d+/)?.[0] || "1") - 1]?.[
+              cellRef.charCodeAt(0) - 65
+            ] || "",
+          s: { font: { bold: true } },
+        };
+      }
+    });
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Reporte Diario");
+
+    const dateStr = initialData.date
+      .toLocaleDateString("es-PE")
+      .replace(/\//g, "-");
+    XLSX.writeFile(workbook, `Cierre_Diario_${dateStr}.xlsx`);
+  };
+
   return (
     <div className="space-y-8 p-4 max-w-6xl mx-auto">
       {/* Header */}
@@ -107,12 +270,20 @@ export default function CloseClient({
         <h1 className="text-2xl md:text-3xl font-bold text-violet-600">
           Cierre del Día — {initialData.date.toLocaleDateString()}
         </h1>
-        <Link
-          href="/dashboard"
-          className="text-sm text-gray-500 hover:text-gray-700"
-        >
-          ← Volver al Dashboard
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/dashboard"
+            className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 bg-gray-100 rounded"
+          >
+            ← Volver al Dashboard
+          </Link>
+          <button
+            onClick={exportToExcel}
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-medium"
+          >
+            📊 Exportar a Excel
+          </button>
+        </div>
       </div>
 
       {/* Close Button */}

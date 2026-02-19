@@ -41,7 +41,6 @@ export default function KitchenView({
         fetchPreparedToday(),
       ]);
 
-      // ✅ Sort orders by the earliest item time within the order
       const sortedActive = active.sort((a, b) => {
         const aEarliest = Math.min(
           ...a.items.map((item) => item.itemOrderedAt.getTime()),
@@ -71,7 +70,7 @@ export default function KitchenView({
       );
 
       if (newItems.length > 0) {
-        playSound("bell.mp3");
+        playSound("alert.wav");
         newItems.forEach((item) =>
           hasPlayedNewOrderSoundRef.current.add(item.id),
         );
@@ -83,7 +82,7 @@ export default function KitchenView({
           !hasPlayedColorChangeSoundRef.current.has(item.id) &&
           (ageMin >= 5 || ageMin >= 10)
         ) {
-          playSound("alert.mp3");
+          playSound("cambio.wav");
           hasPlayedColorChangeSoundRef.current.add(item.id);
           break;
         }
@@ -109,7 +108,6 @@ export default function KitchenView({
     loadOrders();
   };
 
-  // ✅ Updated getCardStyles to use earliest item time
   const getCardStyles = (earliestItemTime: number) => {
     const ageMin = (Date.now() - earliestItemTime) / 60000;
     if (ageMin < 5) {
@@ -135,7 +133,6 @@ export default function KitchenView({
 
   return (
     <div className="space-y-8">
-      {/* Active Orders - Cards */}
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-4">
           Órdenes Activas ({activeOrders.length})
@@ -147,7 +144,6 @@ export default function KitchenView({
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {activeOrders.map((order) => {
-              // ✅ Calculate earliest item time for this order
               const earliestItemTime = Math.min(
                 ...order.items.map((item) => item.itemOrderedAt.getTime()),
               );

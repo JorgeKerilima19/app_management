@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { getReportData } from "./actions";
 import Link from "next/link";
+import * as XLSX from "xlsx";
 
 export default function ReportsPage() {
   const [dateRange, setDateRange] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -67,6 +68,145 @@ export default function ReportsPage() {
     return <div className="p-8 text-center">Cargando reportes...</div>;
   }
 
+  const exportToExcel = () => {
+    if (!reportData) return;
+
+    const worksheetData: any[][] = [];
+
+    // --- Title ---
+    let title = "Reporte de Ventas";
+    let filename = "Reporte_Ventas";
+
+    if (rangeType === "day") {
+      title = `Reporte Diario - ${reportData.dateRange}`;
+      filename = `Reporte_Diario_${reportData.dateRange.replace(/\//g, "-")}`;
+    } else if (rangeType === "week") {
+      title = `Reporte Semanal - ${reportData.dateRange}`;
+      filename = `Reporte_Semanal_${reportData.dateRange.replace(/\//g, "-")}`;
+    } else if (rangeType === "month") {
+      title = `Reporte Mensual - ${reportData.dateRange}`;
+      filename = `Reporte_Mensual_${reportData.dateRange.replace(/-/g, "_")}`;
+    } else {
+      title = "Reporte General";
+      filename = "Reporte_General";
+    }
+
+    worksheetData.push([title]);
+    worksheetData.push([]); // Empty row
+
+    // --- Sales Summary ---
+    worksheetData.push(["RESUMEN DE VENTAS"]);
+    worksheetData.push(["Concepto", "Monto (S/)"]);
+    worksheetData.push(["Total Ventas Cash", reportData.sales.totalCash]);
+    worksheetData.push(["Total Ventas Yape", reportData.sales.totalYape]);
+    worksheetData.push(["Total General", reportData.sales.totalOverall]);
+    worksheetData.push([]); // Empty row
+
+    // --- Items Sold ---
+    worksheetData.push(["ÍTEMS VENDIDOS"]);
+    worksheetData.push(["Ítem", "Categoría", "Cantidad Vendida"]);
+
+    reportData.itemsSold.forEach((item: any) => {
+      worksheetData.push([
+        item.menuItem?.name || "Desconocido",
+        item.menuItem?.category?.name || "Otro",
+        item.totalQuantity,
+      ]);
+    });
+    worksheetData.push([]); // Empty row
+
+    // --- Checks Summary ---
+    if (reportData.checks.length > 0) {
+      worksheetData.push(["CUENTAS CERRADAS"]);
+      worksheetData.push([
+        "Mesa",
+        "Fecha",
+        "Items",
+        "Cantidad",
+        "Método Pago",
+        "Total (S/)",
+      ]);
+
+      reportData.checks.forEach((check: any) => {
+        worksheetData.push([
+          check.tableNames,
+          check.closedAt,
+          check.itemNames.join(", "),
+          check.totalItemsQuantity,
+          check.paymentMethods,
+          check.total,
+        ]);
+      });
+    }
+
+    // Create worksheet
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+
+    // Auto-width columns
+    const colWidths =
+      worksheetData[0]?.map((_, i) => {
+        const maxWidth = Math.max(
+          ...worksheetData.map((row) => (row[i] ? String(row[i]).length : 0)),
+        );
+        return { wch: Math.min(30, Math.max(10, maxWidth + 2)) };
+      }) || [];
+
+    worksheet["!cols"] = colWidths;
+
+    // ✅ Apply bold formatting to headers
+    const boldCells = new Set<string>();
+
+    // Find and bold main title
+    boldCells.add("A1");
+
+    // Bold section headers and column headers
+    let rowIndex = 0;
+    while (rowIndex < worksheetData.length) {
+      const row = worksheetData[rowIndex];
+
+      if (row.length === 0) {
+        rowIndex++;
+        continue;
+      }
+
+      // Bold section headers (single column rows)
+      if (row.length === 1 && typeof row[0] === "string") {
+        boldCells.add(`A${rowIndex + 1}`);
+
+        // If this is a data section header, bold the next row (column headers)
+        const sectionHeaders = [
+          "RESUMEN DE VENTAS",
+          "ÍTEMS VENDIDOS",
+          "CUENTAS CERRADAS",
+        ];
+        if (
+          sectionHeaders.includes(row[0]) &&
+          rowIndex + 1 < worksheetData.length
+        ) {
+          const nextRow = worksheetData[rowIndex + 1];
+          for (let colIndex = 0; colIndex < nextRow.length; colIndex++) {
+            const colLetter = String.fromCharCode(65 + colIndex);
+            boldCells.add(`${colLetter}${rowIndex + 2}`);
+          }
+        }
+      }
+
+      rowIndex++;
+    }
+
+    // Apply bold formatting safely
+    boldCells.forEach((cellRef) => {
+      if (worksheet[cellRef]) {
+        worksheet[cellRef].s = { font: { bold: true } };
+      }
+    });
+
+    // Create and download workbook
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Reporte");
+    XLSX.writeFile(workbook, `${filename}.xlsx`);
+  };
+
   return (
     <div className="space-y-8">
       {/* Daily Summary Card */}
@@ -121,6 +261,12 @@ export default function ReportsPage() {
         >
           ← Volver a Ajustes
         </Link>
+        <button
+          onClick={exportToExcel}
+          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-medium flex items-center gap-1"
+        >
+          <span>📊</span> Exportar a Excel
+        </button>
       </div>
 
       {/* Date Controls */}
