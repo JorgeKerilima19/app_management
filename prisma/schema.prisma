@@ -251,20 +251,21 @@ model PaymentSummary {
 }
 
 model DailySummary {
-  id         String             @id @default(cuid())
-  date       DateTime           @db.Date
-  totalCash  Decimal
-  totalYape  Decimal
-  endingCash Decimal
-  status     DailySummaryStatus @default(OPEN)
-  openedById String
-  openedBy   User               @relation("DailySummaryOpenedBy", fields: [openedById], references: [id])
-  closedById String?
-  closedBy   User?              @relation("DailySummaryClosedBy", fields: [closedById], references: [id])
-  openedAt   DateTime           @default(now())
-  closedAt   DateTime?
-  createdAt  DateTime           @default(now())
-  updatedAt  DateTime           @updatedAt
+  id           String             @id @default(cuid())
+  date         DateTime
+  startingCash Decimal
+  totalCash    Decimal
+  totalYape    Decimal
+  endingCash   Decimal
+  status       DailySummaryStatus @default(OPEN)
+  openedById   String
+  openedBy     User               @relation("DailySummaryOpenedBy", fields: [openedById], references: [id])
+  closedById   String?
+  closedBy     User?              @relation("DailySummaryClosedBy", fields: [closedById], references: [id])
+  openedAt     DateTime           @default(now())
+  closedAt     DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
 
   @@unique([date])
   @@index([date])

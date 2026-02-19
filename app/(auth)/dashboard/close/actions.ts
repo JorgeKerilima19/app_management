@@ -135,11 +135,17 @@ export async function fetchClosingSummary(
     menuItemsMap = new Map(menuItems.map((m) => [m.id, m]));
   }
 
-  const itemsSold = paginatedItemGroups.map((g) => ({
-    menuItem: menuItemsMap.get(g.menuItemId),
-    totalQuantity: g._sum.quantity || 0,
-  }));
+  const itemsSold = paginatedItemGroups.map((g) => {
+    const menuItem = menuItemsMap.get(g.menuItemId);
+    const totalQuantity = g._sum.quantity || 0;
+    const totalSales = menuItem ? totalQuantity * toNumber(menuItem.price) : 0;
 
+    return {
+      menuItem: menuItem ?? null,
+      totalQuantity,
+      totalSales,
+    };
+  });
   const inventoryChanges = await prisma.inventoryItem.findMany({
     where: {
       updatedAt: { gte: today },
@@ -235,7 +241,6 @@ export async function fetchClosingSummary(
     });
   }
 
-  // ✅ Build enriched void records
   const processedVoidRecords = voidRecords.map((record) => {
     let targetDetails = "";
     let totalVoided = 0;
