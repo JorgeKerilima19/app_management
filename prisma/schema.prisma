@@ -29,7 +29,10 @@ model User {
   openedDailySummaries DailySummary[] @relation("DailySummaryOpenedBy")
   closedDailySummaries DailySummary[] @relation("DailySummaryClosedBy")
 
-  inventoryTransactions InventoryTransaction[]
+  inventoryTransactions   InventoryTransaction[]
+  dailyRequirements       DailyRequirement[]     @relation("RequirementApprovedBy")
+  dailyRequirementsAccept DailyRequirement[]
+  storageTransactions     StorageTransaction[]
 }
 
 enum Role {
@@ -245,6 +248,8 @@ model InventoryItem {
 
   recipeItems  RecipeItem[]
   transactions InventoryTransaction[]
+
+  requirementItems RequirementItem[]
 }
 
 model PaymentSummary {
@@ -330,4 +335,93 @@ enum TransactionType {
   MANUAL_ADJUSTMENT
   WASTE
   RETURN
+}
+
+model StorageItem {
+  id              String   @id @default(cuid())
+  name            String
+  currentQuantity Float    @default(0)
+  unit            String
+  category        String?
+  costPerUnit     Decimal?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  transactions StorageTransaction[]
+  requirements RequirementItem[]
+}
+
+// Storage Transaction Audit Trail
+model StorageTransaction {
+  id            String      @id @default(cuid())
+  storageItemId String
+  storageItem   StorageItem @relation(fields: [storageItemId], references: [id])
+
+  type           StorageTransactionType
+  quantityChange Float
+  referenceModel String?
+  referenceId    String?
+  reason         String?
+
+  performedById String?
+  performedBy   User?   @relation(fields: [performedById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([storageItemId, createdAt])
+}
+
+enum StorageTransactionType {
+  PURCHASE
+  TRANSFER_TO_INVENTORY
+  MANUAL_ADJUSTMENT
+  WASTE
+  RETURN
+}
+
+// Daily Requirement (Cook's Request)
+model DailyRequirement {
+  id           String            @id @default(cuid())
+  date         DateTime          @db.Date
+  status       RequirementStatus @default(PENDING)
+  notes        String?
+  createdById  String
+  createdBy    User              @relation(fields: [createdById], references: [id])
+  approvedById String?
+  approvedBy   User?             @relation("RequirementApprovedBy", fields: [approvedById], references: [id])
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  items RequirementItem[]
+
+  @@unique([date])
+  @@index([date])
+}
+
+enum RequirementStatus {
+  PENDING
+  APPROVED
+  PARTIALLY_DELIVERED
+  DELIVERED
+  CANCELLED
+}
+
+// Individual Items in a Requirement
+model RequirementItem {
+  id              String           @id @default(cuid())
+  requirementId   String
+  requirement     DailyRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  inventoryItemId String
+  inventoryItem   InventoryItem    @relation(fields: [inventoryItemId], references: [id])
+
+  quantityRequested Float
+  quantityDelivered Float   @default(0)
+  notes             String?
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  storageItems StorageItem[]
+
+  @@unique([requirementId, inventoryItemId])
 }

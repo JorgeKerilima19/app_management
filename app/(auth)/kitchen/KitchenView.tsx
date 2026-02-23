@@ -1,4 +1,5 @@
-// app/(auth)/kitchen/KitchenView.tsx
+//app/(auth)/kitchen/KitchenView.tsx
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -8,6 +9,7 @@ import {
   fetchPreparedToday,
 } from "./actions";
 import type { KitchenOrder, PreparedOrder } from "./actions";
+import RequirementsModal from "./RequirementsModal";
 
 export default function KitchenView({
   initialActive,
@@ -18,6 +20,7 @@ export default function KitchenView({
 }) {
   const [activeOrders, setActiveOrders] = useState(initialActive);
   const [preparedOrders, setPreparedOrders] = useState(initialPrepared);
+  const [isRequirementsModalOpen, setIsRequirementsModalOpen] = useState(false);
   const hasPlayedNewOrderSoundRef = useRef<Set<string>>(new Set());
   const hasPlayedColorChangeSoundRef = useRef<Set<string>>(new Set());
 
@@ -133,13 +136,23 @@ export default function KitchenView({
 
   return (
     <div className="space-y-8">
+      {/* Requirements Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => setIsRequirementsModalOpen(true)}
+          className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 text-sm font-medium"
+        >
+          + Solicitar para Mañana
+        </button>
+      </div>
+
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-4">
-          Órdenes Activas ({activeOrders.length})
+          Ordenes Activas ({activeOrders.length})
         </h2>
         {activeOrders.length === 0 ? (
           <p className="text-gray-500 text-center py-8 text-xl">
-            No hay órdenes pendientes
+            No hay ordenes pendientes
           </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -154,7 +167,6 @@ export default function KitchenView({
                   key={order.id}
                   className={`border-2 rounded-2xl p-5 cursor-pointer transition-all hover:shadow-lg ${styles.border} ${styles.bg}`}
                   onClick={() => {
-                    // Mark all items in this order as ready
                     order.items.forEach((item) => handleMarkItemReady(item.id));
                   }}
                 >
@@ -271,6 +283,12 @@ export default function KitchenView({
           </div>
         </div>
       )}
+
+      {/* Requirements Modal */}
+      <RequirementsModal
+        isOpen={isRequirementsModalOpen}
+        onClose={() => setIsRequirementsModalOpen(false)}
+      />
     </div>
   );
 }
