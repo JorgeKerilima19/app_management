@@ -1,13 +1,8 @@
 // app/(auth)/tables/[id]/TableOrderManager.tsx
 "use client";
 
-import {
-  addItemToOrder,
-  removeItemFromOrder,
-  sendOrderToStations,
-  updateItemNotes,
-} from "./actions";
-import { useState, useEffect, useRef } from "react";
+import { submitOrder } from "./actions";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { MenuFilterClient } from "./MenuFilterClient";
 
 export function TableOrderManager({
@@ -22,218 +17,286 @@ export function TableOrderManager({
   menuItems: any[];
 }) {
   const [isSending, setIsSending] = useState(false);
-  const [shouldPrint, setShouldPrint] = useState(false);
   const printContentRef = useRef<HTMLDivElement>(null);
 
-  const pendingOrders = currentCheck.orders.filter(
-    (o: any) => o.status === "PENDING"
-  );
-  const allOrdersForBill = currentCheck.orders.filter(
-    (o: any) => o.status === "PENDING" || o.status === "SENT"
-  );
+  // 🛒 Client-side cart state
+  const [cartItems, setCartItems] = useState<
+    Array<{
+      menuItemId: string;
+      name: string;
+      quantity: number;
+      notes: string;
+      price: number;
+      station: "KITCHEN" | "BAR";
+    }>
+  >([]);
 
-  const pendingItems = pendingOrders.flatMap((order: any) =>
-    order.items.map((item: any) => ({ ...item }))
-  );
-
-  const hasPendingItems = pendingItems.length > 0;
-
-  useEffect(() => {
-    if (shouldPrint && printContentRef.current) {
-      const printWindow = window.open("", "_blank", "width=400,height=600");
-      if (!printWindow) {
-        alert("Permita ventanas emergentes para imprimir.");
-        setShouldPrint(false);
-        return;
+  // 🛒 Cart helper functions
+  const addToCart = (menuItem: any) => {
+    setCartItems((prev) => {
+      const existing = prev.find((item) => item.menuItemId === menuItem.id);
+      if (existing) {
+        return prev.map((item) =>
+          item.menuItemId === menuItem.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item,
+        );
       }
-      const style = `<style>body{font-family:Arial,sans-serif;margin:0;padding:0}@media print{@page{size:auto;margin:2mm}body{-webkit-print-color-adjust:exact}}</style>`;
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Cuenta - Mesa ${tableNumber}</title>
-            ${style}
-          </head>
-          <body>
-            ${printContentRef.current.innerHTML}
-            <script>window.onload=function(){window.print();setTimeout(()=>window.close(),1000);}</script>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-      setShouldPrint(false);
-    }
-  }, [shouldPrint, tableNumber]);
+      return [
+        ...prev,
+        {
+          menuItemId: menuItem.id,
+          name: menuItem.name,
+          quantity: 1,
+          notes: "",
+          price: menuItem.price,
+          station: menuItem.station,
+        },
+      ];
+    });
+  };
 
-  const handleSubmitSend = async (e: React.FormEvent<HTMLFormElement>) => {
+  const removeFromCart = (menuItemId: string) => {
+    setCartItems((prev) => {
+      const existing = prev.find((item) => item.menuItemId === menuItemId);
+      if (existing && existing.quantity > 1) {
+        return prev.map((item) =>
+          item.menuItemId === menuItemId
+            ? { ...item, quantity: item.quantity - 1 }
+            : item,
+        );
+      }
+      return prev.filter((item) => item.menuItemId !== menuItemId);
+    });
+  };
+
+  const updateCartNotes = (menuItemId: string, notes: string) => {
+    setCartItems((prev) =>
+      prev.map((item) =>
+        item.menuItemId === menuItemId ? { ...item, notes } : item,
+      ),
+    );
+  };
+
+  // 🛒 Submit order to server + auto-print
+  const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!hasPendingItems || isSending) return;
+    if (cartItems.length === 0 || isSending) return;
+
     setIsSending(true);
-    const formData = new FormData(e.currentTarget);
+    const formData = new FormData();
+    formData.append("tableId", tableId);
+    formData.append("items", JSON.stringify(cartItems));
+
     try {
-      await sendOrderToStations(formData);
-      setShouldPrint(true);
+      await submitOrder(formData);
+      setCartItems([]); // Clear cart after success
     } catch (err) {
+      console.error("Error submitting order:", err);
       alert("Error al enviar la orden.");
     } finally {
       setIsSending(false);
     }
   };
 
+  // Calculate cart total for display
+  const cartTotal = useMemo(
+    () => cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    [cartItems],
+  );
+
   return (
     <>
-      <div className="space-y-8">
-        {currentCheck.orders.filter((o: any) => o.status !== "PENDING").length >
-          0 && (
-          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 opacity-90">
-            <h2 className="text-lg font-semibold mb-3 text-gray-900">
-              Órdenes enviadas
+      <div className="space-y-6">
+        {/* 🛒 Current Cart (Pending Order) */}
+        {cartItems.length > 0 && (
+          <div className="bg-white border border-violet-200 rounded-xl p-4 shadow-sm">
+            <h2 className="text-lg font-semibold mb-3 text-violet-600 flex items-center gap-2">
+              📋 Orden actual
+              <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                {cartItems.reduce((sum, i) => sum + i.quantity, 0)} ítems
+              </span>
             </h2>
-            {currentCheck.orders
-              .filter((o: any) => o.status !== "PENDING")
-              .flatMap((order: any) =>
-                order.items.map((item: any) => {
-                  const stationLabel =
-                    item.menuItem.station === "KITCHEN" ? "Cocina" : "Bar";
-                  return (
-                    <div
-                      key={item.id}
-                      className="flex justify-between bg-white p-3 rounded mb-2 border"
-                    >
-                      <div>
-                        <p className="font-medium text-gray-800">
-                          {item.menuItem.name}
-                        </p>
-                        {item.notes && (
-                          <p className="text-xs text-gray-600 italic">
-                            "{item.notes}"
-                          </p>
-                        )}
-                        <p className="text-xs text-gray-500">
-                          x{item.quantity}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">
-                            ENVIADO
-                          </span>
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
-                            {stationLabel}
-                          </span>
-                        </div>
-                      </div>
-                      <p className="font-bold text-gray-700">
-                        S/ {(item.priceAtOrder * item.quantity).toFixed(2)}
-                      </p>
-                    </div>
-                  );
-                })
-              )}
-          </div>
-        )}
 
-        {pendingItems.length > 0 && (
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <h2 className="text-lg font-semibold mb-3 text-violet-600">
-              Orden actual
-            </h2>
-            {pendingItems.map((item: any) => {
-              const stationLabel =
-                item.menuItem.station === "KITCHEN" ? "Cocina" : "Bar";
-              return (
-                <div
-                  key={item.menuItem.id}
-                  className="flex flex-col sm:flex-row sm:items-center gap-2 bg-gray-50 p-3 rounded mb-3"
-                >
-                  <div className="font-medium flex-1 text-black">
-                    {item.menuItem.name}
-                    <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
-                      {stationLabel}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <form action={removeItemFromOrder}>
-                      <input type="hidden" name="tableId" value={tableId} />
-                      <input
-                        type="hidden"
-                        name="menuItemId"
-                        value={item.menuItem.id}
-                      />
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              {cartItems.map((item) => {
+                const stationLabel = item.station === "KITCHEN" ? "" : "";
+                return (
+                  <div
+                    key={item.menuItemId}
+                    className="flex flex-col sm:flex-row sm:items-center gap-2 bg-gray-50 p-3 rounded-lg"
+                  >
+                    <div className="font-medium flex-1 text-black min-w-0">
+                      <span className="mr-1">{stationLabel}</span>
+                      {item.name}
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
                       <button
-                        type="submit"
-                        className="w-8 h-8 rounded-full bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center"
+                        type="button"
+                        onClick={() => removeFromCart(item.menuItemId)}
+                        className="w-7 h-7 rounded-full bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center text-lg font-bold transition"
+                        title="Reducir cantidad"
                       >
                         –
                       </button>
-                    </form>
-                    <span className="font-bold w-8 text-center text-gray-700">
-                      {item.quantity}
-                    </span>
-                    <form action={addItemToOrder}>
-                      <input type="hidden" name="tableId" value={tableId} />
-                      <input
-                        type="hidden"
-                        name="menuItemId"
-                        value={item.menuItem.id}
-                      />
+                      <span className="font-bold w-6 text-center text-gray-700">
+                        {item.quantity}
+                      </span>
                       <button
-                        type="submit"
-                        className="w-8 h-8 rounded-full bg-violet-100 text-violet-600 hover:bg-violet-200 flex items-center justify-center"
+                        type="button"
+                        onClick={() =>
+                          addToCart({
+                            id: item.menuItemId,
+                            price: item.price,
+                            station: item.station,
+                          })
+                        }
+                        className="w-7 h-7 rounded-full bg-violet-100 text-violet-600 hover:bg-violet-200 flex items-center justify-center text-lg font-bold transition"
+                        title="Agregar otro"
                       >
                         +
                       </button>
-                    </form>
-                  </div>
-                  <div className="w-full sm:w-64 mt-1 sm:mt-0">
-                    <form action={updateItemNotes} className="flex">
-                      <input type="hidden" name="tableId" value={tableId} />
-                      <input
-                        type="hidden"
-                        name="menuItemId"
-                        value={item.menuItem.id}
-                      />
+                    </div>
+
+                    <div className="w-full sm:w-48 mt-1 sm:mt-0">
                       <input
                         type="text"
-                        name="notes"
-                        placeholder="Requerimientos..."
-                        defaultValue={item.notes || ""}
-                        className="w-full p-1.5 text-sm border rounded text-black"
-                        onBlur={(e) => e.currentTarget.form?.requestSubmit()}
-                        onKeyDown={(e) =>
-                          e.key === "Enter" && e.preventDefault()
+                        placeholder="Notas..."
+                        value={item.notes}
+                        onChange={(e) =>
+                          updateCartNotes(item.menuItemId, e.target.value)
                         }
+                        className="w-full p-1.5 text-sm border border-gray-200 rounded text-black placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-violet-500"
                       />
-                    </form>
-                  </div>
-                </div>
-              );
-            })}
+                    </div>
 
-            <form onSubmit={handleSubmitSend} className="mt-4">
+                    <div className="text-right font-bold text-gray-700 min-w-17.5">
+                      S/ {(item.price * item.quantity).toFixed(2)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-200">
+              <span className="font-semibold text-gray-700">Subtotal:</span>
+              <span className="font-bold text-lg text-violet-600">
+                S/ {cartTotal.toFixed(2)}
+              </span>
+            </div>
+
+            <form onSubmit={handleSubmitOrder} className="mt-4">
               <input type="hidden" name="tableId" value={tableId} />
               <button
                 type="submit"
-                disabled={!hasPendingItems || isSending}
-                className={`w-full py-2 rounded-lg font-medium ${
-                  hasPendingItems && !isSending
-                    ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                disabled={cartItems.length === 0 || isSending}
+                className={`w-full py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2 ${
+                  cartItems.length > 0 && !isSending
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow hover:shadow-md"
+                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
                 }`}
               >
-                {isSending ? "Enviando..." : "Enviar Orden"}
+                {isSending ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  <>Enviar Orden</>
+                )}
               </button>
             </form>
           </div>
         )}
 
-        <div className="border-t pt-4">
-          <p className="text-lg font-bold text-gray-900">
-            Total: S/ {currentCheck.total.toFixed(2)}
-          </p>
+        {currentCheck.orders.filter((o: any) => o.status === "SENT").length >
+          0 && (
+          <details className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+            <summary className="cursor-pointer font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              Órdenes enviadas (
+              {
+                currentCheck.orders.filter((o: any) => o.status === "SENT")
+                  .length
+              }
+              )
+            </summary>
+            <div className="space-y-2 mt-2">
+              {currentCheck.orders
+                .filter((o: any) => o.status === "SENT")
+                .flatMap((order: any) =>
+                  order.items.map((item: any) => {
+                    const stationIcon =
+                      item.menuItem.station === "KITCHEN" ? "" : "";
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex justify-between bg-white p-2.5 rounded border text-sm"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-800 truncate">
+                            {stationIcon} {item.menuItem.name}
+                          </p>
+                          {item.notes && (
+                            <p className="text-xs text-gray-500 italic truncate">
+                              "{item.notes}"
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-400">
+                            x{item.quantity}
+                          </p>
+                        </div>
+                        <p className="font-bold text-gray-700 whitespace-nowrap ml-2">
+                          S/ {(item.priceAtOrder * item.quantity).toFixed(2)}
+                        </p>
+                      </div>
+                    );
+                  }),
+                )}
+            </div>
+          </details>
+        )}
+
+        <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
+          <div className="flex justify-between items-center">
+            <p className="text-lg font-bold text-gray-800">Total acumulado:</p>
+            <p className="text-2xl font-extrabold text-violet-700">
+              S/ {currentCheck.total.toFixed(2)}
+            </p>
+          </div>
         </div>
 
-        <div className="mt-8">
-          <h2 className="text-xl text-gray-900 font-semibold mb-4">Agregar ítems</h2>
-          <MenuFilterClient tableId={tableId} menuItems={menuItems} />
+        <div className="mt-6">
+          <h2 className="text-xl text-gray-900 font-semibold mb-4 flex items-center gap-2">
+            Agregar ítems al pedido
+          </h2>
+          <MenuFilterClient
+            tableId={tableId}
+            menuItems={menuItems}
+            onAddToCart={addToCart}
+          />
+        </div>
+      </div>
+
+      {/* Hidden print container (fallback) */}
+      <div ref={printContentRef} className="hidden">
+        <div className="p-4 font-mono text-xs">
+          <p className="text-center font-bold">Taguchi Restaurant</p>
+          <p className="text-center">Mesa {tableNumber}</p>
+          <p className="text-center">{new Date().toLocaleString("es-PE")}</p>
+          <hr className="my-2 border-dashed" />
+          {cartItems.map((item) => (
+            <div key={item.menuItemId} className="flex justify-between">
+              <span>
+                {item.name} x{item.quantity}
+              </span>
+              <span>S/ {(item.price * item.quantity).toFixed(2)}</span>
+            </div>
+          ))}
+          <hr className="my-2 border-dashed" />
+          <p className="text-right font-bold">
+            Total: S/ {cartTotal.toFixed(2)}
+          </p>
         </div>
       </div>
     </>

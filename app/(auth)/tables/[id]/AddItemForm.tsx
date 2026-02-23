@@ -1,14 +1,12 @@
 // app/(auth)/tables/[id]/AddItemForm.tsx
 "use client";
 
-import { addItemToOrder } from "./actions";
 import { useState } from "react";
 
 export function AddItemForm({
-  tableId,
   menuItem,
+  onAddToCart,
 }: {
-  tableId: string;
   menuItem: {
     id: string;
     name: string;
@@ -20,17 +18,19 @@ export function AddItemForm({
     category: { name: string };
     station: "KITCHEN" | "BAR";
   };
+  onAddToCart: (menuItem: any, quantity: number, notes: string) => void;
 }) {
   const [showNotes, setShowNotes] = useState(false);
   const [notes, setNotes] = useState("");
   const [quantity, setQuantity] = useState(1);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
-    const form = e.currentTarget as HTMLFormElement;
-    (form.notes as any).value = notes;
-    (form.quantity as any).value = quantity;
-    (form.querySelector('button[type="submit"]') as HTMLButtonElement).click();
+    e.stopPropagation();
+    onAddToCart(menuItem, quantity, notes.trim() || "");
+    setShowNotes(false);
+    setNotes("");
+    setQuantity(1);
   };
 
   if (!menuItem.isAvailable) {
@@ -47,13 +47,11 @@ export function AddItemForm({
   return (
     <div className="group relative bg-white rounded border hover:bg-violet-50 cursor-pointer transition">
       {showNotes ? (
-        <form action={addItemToOrder} onSubmit={handleSubmit} className="p-3">
-          <input type="hidden" name="tableId" value={tableId} />
-          <input type="hidden" name="menuItemId" value={menuItem.id} />
-          <input type="hidden" name="notes" />
-          <input type="hidden" name="quantity" />
+        <div className="p-3" onClick={(e) => e.stopPropagation()}>
           <div className="font-medium text-gray-900">{menuItem.name}</div>
-          <div className="text-xs text-gray-500 mb-1">{menuItem.category.name}</div>
+          <div className="text-xs text-gray-500 mb-1">
+            {menuItem.category.name}
+          </div>
           <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 mb-2 inline-block">
             {stationLabel}
           </span>
@@ -67,7 +65,8 @@ export function AddItemForm({
                 const val = parseInt(e.target.value);
                 setQuantity(isNaN(val) || val < 1 ? 1 : val);
               }}
-              className="w-16 p-1 text-sm border rounded"
+              className="w-16 p-1 text-sm border rounded text-black"
+              onClick={(e) => e.stopPropagation()}
             />
           </div>
           <input
@@ -75,25 +74,35 @@ export function AddItemForm({
             placeholder="e.g., no onions"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full p-1.5 text-sm border rounded mb-2"
+            className="w-full p-1.5 text-sm border rounded mb-2 text-black"
             autoFocus
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleAdd(e as any);
+              }
+            }}
           />
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => setShowNotes(false)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowNotes(false);
+              }}
               className="px-2 py-1 text-xs bg-gray-200 rounded"
             >
               Cancelar
             </button>
             <button
-              type="submit"
+              type="button"
+              onClick={handleAdd}
               className="px-2 py-1 text-xs bg-violet-600 text-white rounded"
             >
               Añadir
             </button>
           </div>
-        </form>
+        </div>
       ) : (
         <div className="p-3" onClick={() => setShowNotes(true)}>
           <div className="font-medium text-gray-900 group-hover:text-violet-700">

@@ -22,23 +22,19 @@ export default async function TablesPage() {
     const table = getTable(num);
     if (!table) return null;
 
-    // ✅ Use `capacity` from DB: 4 = square, 8 = rectangle
     const is8Seater = table.capacity === 8;
     const sizeClasses = is8Seater ? "w-32 h-20" : "w-20 h-20";
 
-    // ✅ Status-based styling
     const statusClasses =
       table.status === "AVAILABLE"
-        ? "bg-white border-gray-300 text-gray-800"
-        : "bg-green-500 border-green-600 text-white";
+        ? "bg-white border-gray-300 text-gray-800 hover:border-violet-400"
+        : "bg-green-500 border-green-600 text-white hover:bg-green-600";
 
     return (
       <Link key={table.id} href={`/tables/${table.id}`}>
         <div
           className={`${sizeClasses} rounded-lg border-2 flex items-center justify-center font-bold cursor-pointer transition transform hover:scale-105 ${statusClasses}`}
-          title={`${table.name || `Mesa ${table.number}`} - ${
-            table.capacity
-          } personas`}
+          title={`${table.name || `Mesa ${table.number}`} - ${table.capacity} personas`}
         >
           {table.number}
         </div>
@@ -46,7 +42,6 @@ export default async function TablesPage() {
     );
   };
 
-  // Layout
   const rows = [
     { left: [12, 11, 6], right: 5 },
     { left: [13, 10, 7], right: 4 },
@@ -57,7 +52,9 @@ export default async function TablesPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto bg-white min-h-screen">
-      <LogoutButton />
+      <div className="flex justify-end mb-4">
+        <LogoutButton />
+      </div>
       <h1 className="text-2xl font-bold text-violet-500 text-center mb-8">
         Vista de las Mesas
       </h1>

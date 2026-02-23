@@ -76,7 +76,7 @@ export default async function TablePage({
       prepTimeMin: item.prepTimeMin,
       categoryId: item.categoryId,
       category: { name: item.category.name },
-      station: item.station, // ✅ Include station
+      station: item.station,
     }));
   }
 
@@ -121,7 +121,7 @@ export default async function TablePage({
             <input type="hidden" name="tableId" value={table.id} />
             <button
               type="submit"
-              className="bg-violet-600 hover:bg-violet-700 text-white px-8 py-4 rounded-lg font-medium text-lg"
+              className="bg-violet-600 hover:bg-violet-700 text-white px-8 py-4 rounded-lg font-medium text-lg transition"
             >
               Abrir Mesa
             </button>

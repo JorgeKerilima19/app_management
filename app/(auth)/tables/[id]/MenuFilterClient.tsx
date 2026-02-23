@@ -1,12 +1,13 @@
 // app/(auth)/tables/[id]/MenuFilterClient.tsx
 "use client";
 
-import { addItemToOrder } from "./actions";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { MenuItemCard } from "./MenuItemCard";
 
 export function MenuFilterClient({
   tableId,
   menuItems,
+  onAddToCart,
 }: {
   tableId: string;
   menuItems: {
@@ -20,25 +21,57 @@ export function MenuFilterClient({
     category: { name: string };
     station: "KITCHEN" | "BAR";
   }[];
+  onAddToCart: (menuItem: any) => void;
 }) {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
-  const categories = Array.from(
-    new Set(menuItems.map((item) => item.category.name))
-  ).sort();
+  const categories = useMemo(
+    () =>
+      Array.from(new Set(menuItems.map((item) => item.category.name))).sort(),
+    [menuItems],
+  );
 
-  const filtered = selectedCategory
-    ? menuItems.filter((item) => item.category.name === selectedCategory)
-    : menuItems;
+  const filtered = useMemo(() => {
+    let result = menuItems.filter((item) => item.isAvailable);
+
+    // Filter by category
+    if (selectedCategory) {
+      result = result.filter((item) => item.category.name === selectedCategory);
+    }
+
+    // Filter by search query (name or description)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter(
+        (item) =>
+          item.name.toLowerCase().includes(query) ||
+          (item.description?.toLowerCase().includes(query) ?? false),
+      );
+    }
+
+    return result;
+  }, [menuItems, selectedCategory, searchQuery]);
 
   return (
     <div>
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+      <div className="mb-4 sticky top-0 bg-white pb-2 z-10">
+        <input
+          type="text"
+          placeholder="Buscar plato o bebida..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full p-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500 text-black placeholder-gray-400"
+        />
+      </div>
+
+      {/* 📂 Category Filters */}
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300">
         <button
-          className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap ${
+          className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition ${
             selectedCategory === ""
-              ? "bg-violet-500 text-gray-100"
-              : "bg-gray-500 hover:bg-violet-400"
+              ? "bg-violet-500 text-white shadow"
+              : "bg-gray-100 hover:bg-violet-100 text-gray-700"
           }`}
           onClick={() => setSelectedCategory("")}
         >
@@ -47,10 +80,10 @@ export function MenuFilterClient({
         {categories.map((category) => (
           <button
             key={category}
-            className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition ${
               selectedCategory === category
-                ? "bg-violet-500 text-gray-100"
-                : "bg-gray-500 hover:bg-violet-400"
+                ? "bg-violet-500 text-white shadow"
+                : "bg-gray-100 hover:bg-violet-100 text-gray-700"
             }`}
             onClick={() => setSelectedCategory(category)}
           >
@@ -59,46 +92,39 @@ export function MenuFilterClient({
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {filtered.map((item) => {
-          if (!item.isAvailable) return null;
-          const stationLabel = item.station === "KITCHEN" ? "Cocina" : "Bar";
-          return (
-            <form
-              key={item.id}
-              action={addItemToOrder}
-              className="group relative flex flex-col p-3 bg-white rounded border border-violet-700 hover:bg-violet-50 cursor-pointer transition"
+      {filtered.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-gray-500 text-lg">
+            {searchQuery
+              ? " No se encontraron resultados"
+              : "No hay ítems disponibles"}
+          </p>
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="mt-2 text-violet-600 hover:underline text-sm"
             >
-              <input type="hidden" name="tableId" value={tableId} />
-              <input type="hidden" name="menuItemId" value={item.id} />
-              <input type="hidden" name="quantity" value="1" />
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-medium text-gray-900 group-hover:text-violet-700">
-                    {item.name}
-                  </p>
-                  <p className="text-xs text-gray-900">{item.category.name}</p>
-                </div>
-                <span className="text-xs px-1.5 py-0.5 rounded bg-violet-700 text-gray-100">
-                  {stationLabel}
-                </span>
-              </div>
-              <div className="flex justify-between items-end mt-2">
-                <p className="text-xs text-gray-500">
-                  {item.prepTimeMin && `${item.prepTimeMin} min`}
-                </p>
-                <p className="font-bold text-violet-600 group-hover:text-violet-800">
-                  S/ {item.price.toFixed(2)}
-                </p>
-              </div>
-              <button
-                type="submit"
-                className="absolute inset-0 w-full h-full opacity-0"
-              ></button>
-            </form>
-          );
-        })}
-      </div>
+              Limpiar búsqueda
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {filtered.map((item) => (
+            <MenuItemCard
+              key={item.id}
+              menuItem={item}
+              onAddToCart={onAddToCart}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Results counter */}
+      <p className="text-xs text-gray-400 mt-4 text-center">
+        {filtered.length} ítem{filtered.length !== 1 ? "s" : ""} mostrado
+        {filtered.length !== 1 ? "s" : ""}
+      </p>
     </div>
   );
 }

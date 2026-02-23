@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { generateEscPosReceipt, printReceiptToPOS } from "@/lib/printer";
 
 function toNumber(value: any): number {
   if (value == null) return 0;
@@ -201,10 +202,10 @@ export async function sendOrderToStations(formData: FormData) {
   if (!pendingOrder || pendingOrder.items.length === 0) return;
 
   const hasKitchen = pendingOrder.items.some(
-    (item) => item.menuItem.station === "KITCHEN"
+    (item) => item.menuItem.station === "KITCHEN",
   );
   const hasBar = pendingOrder.items.some(
-    (item) => item.menuItem.station === "BAR"
+    (item) => item.menuItem.station === "BAR",
   );
 
   const now = new Date();
@@ -254,3 +255,100 @@ async function updateCheckTotal(checkId: string) {
     },
   });
 }
+
+export async function submitOrder(formData: FormData) {
+  const tableId = formData.get("tableId") as string;
+  const itemsJson = formData.get("items") as string;
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const table = await prisma.table.findFirst({
+    where: { id: tableId, deletedAt: null },
+    include: { currentCheck: true },
+  });
+
+  if (!table?.currentCheck) throw new Error("No active check");
+
+  const cartItems = JSON.parse(itemsJson) as Array<{
+    menuItemId: string;
+    quantity: number;
+    notes: string | null;
+  }>;
+
+  if (cartItems.length === 0) return;
+
+  const menuItemIds = cartItems.map((item) => item.menuItemId);
+  const menuItems = await prisma.menuItem.findMany({
+    where: { id: { in: menuItemIds } },
+  });
+  const menuItemMap = new Map(menuItems.map((m) => [m.id, m]));
+
+  const order = await prisma.order.create({
+    data: {
+      status: "SENT",
+      checkId: table.currentCheck.id,
+      orderedById: user.id,
+    },
+  });
+
+  const orderItemsData = [];
+  const printItems = [];
+  const now = new Date();
+  let hasKitchen = false;
+  let hasBar = false;
+
+  for (const cartItem of cartItems) {
+    const menuItem = menuItemMap.get(cartItem.menuItemId);
+    if (!menuItem) continue;
+
+    if (menuItem.station === "KITCHEN") hasKitchen = true;
+    if (menuItem.station === "BAR") hasBar = true;
+
+    orderItemsData.push({
+      orderId: order.id,
+      menuItemId: cartItem.menuItemId,
+      quantity: cartItem.quantity,
+      notes: cartItem.notes,
+      priceAtOrder: menuItem.price,
+      modifiers: [],
+    });
+
+    printItems.push({
+      name: menuItem.name,
+      price: toNumber(menuItem.price),
+      quantity: cartItem.quantity,
+      notes: cartItem.notes,
+      station: menuItem.station as "KITCHEN" | "BAR",
+    });
+  }
+
+  if (orderItemsData.length > 0) {
+    await prisma.orderItem.createMany({ data: orderItemsData });
+  }
+
+  await prisma.order.update({
+    where: { id: order.id },
+    data: {
+      sentToKitchenAt: hasKitchen ? now : null,
+      sentToBarAt: hasBar ? now : null,
+    },
+  });
+
+  await updateCheckTotal(table.currentCheck.id);
+
+  // 🖨️ Auto-print receipt
+  const receiptBuffer = generateEscPosReceipt(table.number, printItems, now);
+  await printReceiptToPOS(receiptBuffer);
+
+  // Create new PENDING order for next round of additions
+  await prisma.order.create({
+    data: {
+      status: "PENDING",
+      checkId: table.currentCheck.id,
+      orderedById: user.id,
+    },
+  });
+
+  revalidatePath(`/tables/${tableId}`);
+}
+
