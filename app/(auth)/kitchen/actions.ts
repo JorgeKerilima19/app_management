@@ -228,13 +228,9 @@ export async function markOrderAsReady(formData: FormData) {
   revalidatePath("/kitchen");
   return { success: true };
 }
-export async function getInventoryItemsForRequirements() {
-  "use server";
 
+export async function getInventoryItemsForRequirements() {
   return await prisma.inventoryItem.findMany({
-    where: {
-      currentQuantity: { gt: 0 },
-    },
     orderBy: { name: "asc" },
     select: {
       id: true,
@@ -247,8 +243,6 @@ export async function getInventoryItemsForRequirements() {
 }
 
 export async function createDailyRequirement(formData: FormData) {
-  "use server";
-
   const user = await getCurrentUser();
   if (!user || !["COCINERO", "OWNER", "ADMIN"].includes(user.role)) {
     throw new Error("No autorizado");
@@ -261,11 +255,9 @@ export async function createDailyRequirement(formData: FormData) {
     throw new Error("Fecha es requerida");
   }
 
-  // ✅ Fix: Create date at noon to avoid timezone issues
   const [year, month, day] = dateStr.split("-").map(Number);
   const date = new Date(year, month - 1, day, 12, 0, 0, 0); // Noon instead of midnight
 
-  // Check if requirement already exists for this date (compare by date only)
   const existingRequirement = await prisma.dailyRequirement.findFirst({
     where: {
       date: {
@@ -297,11 +289,7 @@ export async function createDailyRequirement(formData: FormData) {
   return { success: true, requirementId: requirement.id, existed: false };
 }
 
-// Get pending requirements for settings page
 export async function getDailyRequirements() {
-  "use server";
-
-  // ✅ Fix: Get today at noon to avoid timezone issues
   const today = new Date();
   today.setHours(12, 0, 0, 0);
 
@@ -325,10 +313,7 @@ export async function getDailyRequirements() {
   });
 }
 
-// Add item to a requirement
 export async function addRequirementItem(formData: FormData) {
-  "use server";
-
   const user = await getCurrentUser();
   if (!user || !["COCINERO", "OWNER", "ADMIN"].includes(user.role)) {
     throw new Error("No autorizado");
@@ -348,7 +333,6 @@ export async function addRequirementItem(formData: FormData) {
     throw new Error("Cantidad inválida");
   }
 
-  // ✅ Validate that inventory item exists
   const inventoryItem = await prisma.inventoryItem.findUnique({
     where: { id: inventoryItemId },
   });
@@ -357,7 +341,6 @@ export async function addRequirementItem(formData: FormData) {
     throw new Error("El item de inventario no existe");
   }
 
-  // ✅ Validate that requirement exists
   const requirement = await prisma.dailyRequirement.findUnique({
     where: { id: requirementId },
   });
@@ -366,7 +349,6 @@ export async function addRequirementItem(formData: FormData) {
     throw new Error("El requerimiento no existe");
   }
 
-  // ✅ Check if this item already exists in the requirement
   const existingItem = await prisma.requirementItem.findUnique({
     where: {
       requirementId_inventoryItemId: {
@@ -377,7 +359,6 @@ export async function addRequirementItem(formData: FormData) {
   });
 
   if (existingItem) {
-    // Update existing item quantity instead of creating duplicate
     await prisma.requirementItem.update({
       where: {
         requirementId_inventoryItemId: {
@@ -391,7 +372,6 @@ export async function addRequirementItem(formData: FormData) {
       },
     });
   } else {
-    // Create new requirement item
     await prisma.requirementItem.create({
       data: {
         requirementId,
@@ -407,10 +387,7 @@ export async function addRequirementItem(formData: FormData) {
   revalidatePath("/kitchen");
 }
 
-// Deliver requirement item
 export async function deliverRequirementItem(formData: FormData) {
-  "use server";
-
   const user = await getCurrentUser();
   if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
     throw new Error("No autorizado");
@@ -449,6 +426,41 @@ export async function deliverRequirementItem(formData: FormData) {
       throw new Error("Ya se entregó la cantidad completa");
     }
 
+    const storageItem = await tx.storageItem.findFirst({
+      where: {
+        name: {
+          equals: requirementItem.inventoryItem.name,
+          mode: "insensitive",
+        },
+        currentQuantity: { gte: deliverQuantity },
+      },
+    });
+
+    if (storageItem) {
+      // Transfer from storage to inventory
+      await tx.storageItem.update({
+        where: { id: storageItem.id },
+        data: { currentQuantity: { decrement: deliverQuantity } },
+      });
+
+      await tx.storageTransaction.create({
+        data: {
+          storageItemId: storageItem.id,
+          type: "TRANSFER_TO_INVENTORY",
+          quantityChange: -deliverQuantity,
+          referenceModel: "RequirementItem",
+          referenceId: requirementItemId,
+          reason: `Entregado para requerimiento`,
+          performedById: user.id,
+        },
+      });
+    }
+
+    await tx.inventoryItem.update({
+      where: { id: requirementItem.inventoryItemId },
+      data: { currentQuantity: { increment: deliverQuantity } },
+    });
+
     await tx.requirementItem.update({
       where: { id: requirementItemId },
       data: { quantityDelivered: { increment: deliverQuantity } },
@@ -472,13 +484,12 @@ export async function deliverRequirementItem(formData: FormData) {
   });
 
   revalidatePath("/settings");
+  revalidatePath("/inventory");
+  revalidatePath("/storage");
   return { success: true };
 }
 
-// Cancel a requirement
 export async function cancelRequirement(formData: FormData) {
-  "use server";
-
   const user = await getCurrentUser();
   if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
     throw new Error("No autorizado");

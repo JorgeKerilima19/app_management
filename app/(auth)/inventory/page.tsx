@@ -1,4 +1,3 @@
-// app/inventory/page.tsx
 import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
@@ -18,12 +17,20 @@ export default async function InventoryPage() {
     <div className="space-y-8">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-violet-600">Inventario</h1>
-        <Link
-          href="/inventory/add"
-          className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
-        >
-          + Añadir Item
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/storage"
+            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+          >
+            Almacén →
+          </Link>
+          <Link
+            href="/inventory/add"
+            className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+          >
+            + Añadir Item
+          </Link>
+        </div>
       </div>
 
       {items.length === 0 ? (
@@ -66,7 +73,6 @@ export default async function InventoryPage() {
             </thead>
             <tbody>
               {items.map((item) => {
-                // ✅ Low-stock logic
                 const isLowStock =
                   item.lowStockThreshold !== null &&
                   item.currentQuantity <= item.lowStockThreshold;

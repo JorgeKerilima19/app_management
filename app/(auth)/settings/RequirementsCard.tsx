@@ -1,4 +1,4 @@
-// app/settings/RequirementsCard.tsx
+/// app/(auth)/settings/RequirementsCard.tsx
 "use client";
 
 import { useState } from "react";
@@ -54,7 +54,7 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
     try {
       setDeliveringId(requirementItemId);
       await deliverRequirementItem(formData);
-      alert("Entregado exitosamente");
+      alert("Entregado exitosamente. Stock transferido a inventario.");
       window.location.reload();
     } catch (e) {
       alert("Error: " + (e as Error).message);
@@ -115,7 +115,6 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
     }
   };
 
-  // ✅ Fix: Format date properly from the Date object
   const formatDate = (date: Date) => {
     const dateObj = new Date(date);
     return dateObj.toLocaleDateString("es-PE", {
@@ -243,6 +242,7 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
                           <button
                             onClick={() => setDeliveringId(item.id)}
                             className="px-3 py-1 bg-violet-600 text-white rounded text-sm hover:bg-violet-700"
+                            title="Transferir desde Almacén a Inventario"
                           >
                             Entregar
                           </button>
