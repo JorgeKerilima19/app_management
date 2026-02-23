@@ -1,4 +1,4 @@
-// app/dashboard/close/CloseClient.tsx
+/// app/dashboard/close/CloseClient.tsx
 "use client";
 
 import { useState, useTransition } from "react";
@@ -106,12 +106,14 @@ export default function CloseClient({
   const exportToExcel = () => {
     const worksheetData: any[][] = [];
 
+    // Header
     worksheetData.push(["REPORTE DE CIERRE DIARIO"]);
     worksheetData.push([
       `Fecha: ${initialData.date.toLocaleDateString("es-PE")}`,
     ]);
     worksheetData.push([]);
 
+    // Daily Summary
     worksheetData.push(["RESUMEN DIARIO"]);
     worksheetData.push(["Concepto", "Monto (S/)"]);
     worksheetData.push([
@@ -126,6 +128,7 @@ export default function CloseClient({
     ]);
     worksheetData.push([]);
 
+    // Items Sold
     worksheetData.push(["ÍTEMS VENDIDOS"]);
     worksheetData.push([
       "Ítem",
@@ -149,6 +152,29 @@ export default function CloseClient({
     });
     worksheetData.push([]);
 
+    if (initialData.inventoryChanges.length > 0) {
+      worksheetData.push(["MOVIMIENTOS DE INVENTARIO"]);
+      worksheetData.push([
+        "Producto",
+        "Stock Actual",
+        "Unidad",
+        "Categoría",
+        "Última Modificación",
+      ]);
+
+      initialData.inventoryChanges.forEach((item) => {
+        worksheetData.push([
+          item.name,
+          item.quantity.toFixed(2),
+          item.unit,
+          item.category || "—",
+          item.updatedAt.toLocaleString("es-PE"),
+        ]);
+      });
+      worksheetData.push([]);
+    }
+
+    // Void Records
     if (initialData.voidRecords.length > 0) {
       worksheetData.push(["ANULACIONES"]);
       worksheetData.push([
@@ -171,6 +197,7 @@ export default function CloseClient({
       worksheetData.push([]);
     }
 
+    // Final Totals
     worksheetData.push(["TOTALES FINALES"]);
     worksheetData.push(["Total Ítems Vendidos", initialData.totalItems]);
     worksheetData.push([
@@ -184,30 +211,28 @@ export default function CloseClient({
       initialData.sales.totalCash + initialData.sales.totalYape,
     ]);
 
+    // Create worksheet
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
 
+    // Auto column widths
     const colWidths =
       worksheetData[0]?.map((_, i) => {
         const maxWidth = Math.max(
           ...worksheetData.map((row) => (row[i] ? String(row[i]).length : 0)),
         );
-        return { wch: Math.min(30, Math.max(10, maxWidth + 2)) };
+        return { wch: Math.min(40, Math.max(10, maxWidth + 2)) };
       }) || [];
-
     worksheet["!cols"] = colWidths;
 
+    // Bold headers
     const boldCells = new Set<string>();
-
     let rowIndex = 0;
     while (rowIndex < worksheetData.length) {
       const row = worksheetData[rowIndex];
-
-      // Skip empty rows
       if (row.length === 0 || (row.length === 1 && row[0] === "")) {
         rowIndex++;
         continue;
       }
-
       if (
         row.length === 1 &&
         typeof row[0] === "string" &&
@@ -216,12 +241,11 @@ export default function CloseClient({
         boldCells.add(`A${rowIndex + 1}`);
       } else if (
         rowIndex > 0 &&
-        worksheetData[rowIndex - 1].length === 0 && // Previous row is empty (section start)
+        worksheetData[rowIndex - 1].length === 0 &&
         row.some((cell) => typeof cell === "string")
       ) {
-        // Bold all cells in this header row
         for (let colIndex = 0; colIndex < row.length; colIndex++) {
-          const colLetter = String.fromCharCode(65 + colIndex); // A, B, C...
+          const colLetter = String.fromCharCode(65 + colIndex);
           boldCells.add(`${colLetter}${rowIndex + 1}`);
         }
       } else if (
@@ -231,11 +255,8 @@ export default function CloseClient({
         row[0] === "Cierre de ventas"
       ) {
         boldCells.add(`A${rowIndex + 1}`);
-        if (row[0] === "Cierre de ventas") {
-          boldCells.add(`B${rowIndex + 1}`);
-        }
+        if (row[0] === "Cierre de ventas") boldCells.add(`B${rowIndex + 1}`);
       }
-
       rowIndex++;
     }
 
@@ -460,11 +481,10 @@ export default function CloseClient({
         )}
       </div>
 
-      {/* Inventory Changes */}
       {initialData.inventoryChanges.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Cambios en Inventario ({initialData.inventoryChanges.length})
+            Movimientos de Inventario ({initialData.inventoryChanges.length})
           </h2>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -474,7 +494,13 @@ export default function CloseClient({
                     Producto
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                    Cantidad
+                    Stock Actual
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Transferido desde Almacén
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Unidad
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                     Categoría
@@ -491,13 +517,16 @@ export default function CloseClient({
                       {item.name}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                      {item.quantity} {item.unit}
+                      {item.quantity.toFixed(2)} {item.unit}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      {item.unit}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                       {item.category || "—"}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                      {item.updatedAt.toLocaleTimeString()}
+                      {item.updatedAt.toLocaleString("es-PE")}
                     </td>
                   </tr>
                 ))}

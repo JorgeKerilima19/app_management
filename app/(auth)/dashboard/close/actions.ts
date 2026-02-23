@@ -1,4 +1,4 @@
-// app/dashboard/close/actions.ts
+/// app/dashboard/close/actions.ts
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -80,6 +80,7 @@ export async function fetchClosingSummary(
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
 
   const dailySummary = await prisma.dailySummary.findUnique({
     where: { date: today },
@@ -87,7 +88,7 @@ export async function fetchClosingSummary(
 
   const payments = await prisma.payment.findMany({
     where: {
-      createdAt: { gte: today },
+      createdAt: { gte: today, lt: tomorrow },
       check: { status: "CLOSED" },
     },
   });
@@ -109,11 +110,11 @@ export async function fetchClosingSummary(
   const itemGroups = await prisma.orderItem.groupBy({
     by: ["menuItemId"],
     where: {
-      createdAt: { gte: today },
+      createdAt: { gte: today, lt: tomorrow },
       order: {
         check: {
           status: "CLOSED",
-          closedAt: { gte: today },
+          closedAt: { gte: today, lt: tomorrow },
         },
       },
       menuItem: categoryId ? { categoryId } : undefined,
@@ -146,12 +147,34 @@ export async function fetchClosingSummary(
       totalSales,
     };
   });
-  const inventoryChanges = await prisma.inventoryItem.findMany({
-    where: {
-      updatedAt: { gte: today },
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+
+  // ✅ Fixed: Use referenceId instead of inventoryItemId
+  const inventoryChanges = await prisma.$queryRaw`
+    SELECT 
+      i.id,
+      i.name,
+      i."currentQuantity" as quantity,
+      i.unit,
+      i.category,
+      i.notes,
+      i."updatedAt",
+      COALESCE(st."transfer_qty", 0) as storage_transfer
+    FROM "InventoryItem" i
+    LEFT JOIN (
+      SELECT 
+        "referenceId" as "inv_id",
+        SUM("quantityChange") as "transfer_qty"
+      FROM "StorageTransaction"
+      WHERE type = 'TRANSFER_TO_INVENTORY'
+        AND "referenceModel" = 'InventoryItem'
+        AND "createdAt" >= ${today}
+        AND "createdAt" < ${tomorrow}
+      GROUP BY "referenceId"
+    ) st ON i.id = st."inv_id"
+    WHERE i."updatedAt" >= ${today}
+       OR st."transfer_qty" IS NOT NULL
+    ORDER BY i.name ASC
+  `;
 
   const categories = await prisma.category.findMany({
     where: { isActive: true },
@@ -159,7 +182,7 @@ export async function fetchClosingSummary(
   });
 
   const voidRecords = await prisma.voidRecord.findMany({
-    where: { createdAt: { gte: today } },
+    where: { createdAt: { gte: today, lt: tomorrow } },
     include: {
       voidedBy: { select: { name: true } },
     },
@@ -176,7 +199,6 @@ export async function fetchClosingSummary(
     else if (record.target === "CHECK") checkIds.push(record.targetId);
   });
 
-  // Fetch order items
   const orderItemsMap = new Map<string, { name: string; quantity: number }>();
   if (orderItemIds.length > 0) {
     const items = await prisma.orderItem.findMany({
@@ -195,7 +217,6 @@ export async function fetchClosingSummary(
     });
   }
 
-  // Fetch orders
   const ordersMap = new Map<string, { name: string; quantity: number }[]>();
   if (orderIds.length > 0) {
     const orders = await prisma.order.findMany({
@@ -215,7 +236,6 @@ export async function fetchClosingSummary(
     });
   }
 
-  // Fetch checks
   const checksMap = new Map<string, { name: string; quantity: number }[]>();
   if (checkIds.length > 0) {
     const checks = await prisma.check.findMany({
@@ -286,12 +306,33 @@ export async function fetchClosingSummary(
     };
   });
 
+  // ✅ Serialize inventory changes with Decimal handling
+  const serializedInventoryChanges = (inventoryChanges as any[]).map(
+    (item) => ({
+      id: item.id,
+      name: item.name,
+      quantity: toNumber(item.quantity),
+      unit: item.unit,
+      category: item.category,
+      notes: item.notes,
+      updatedAt:
+        item.updatedAt instanceof Date
+          ? item.updatedAt
+          : new Date(item.updatedAt),
+      storage_transfer: item.storage_transfer
+        ? toNumber(item.storage_transfer)
+        : 0,
+    }),
+  );
+
   return {
     dailySummary: dailySummary
       ? {
           id: dailySummary.id,
           startingCash: toNumber(dailySummary.startingCash),
-          endingCash: toNumber(dailySummary.endingCash),
+          endingCash: dailySummary.endingCash
+            ? toNumber(dailySummary.endingCash)
+            : 0,
           status: dailySummary.status,
         }
       : null,
@@ -301,7 +342,7 @@ export async function fetchClosingSummary(
     },
     itemsSold,
     totalItems,
-    inventoryChanges,
+    inventoryChanges: serializedInventoryChanges,
     categories,
     voidRecords: processedVoidRecords,
     date: today,
