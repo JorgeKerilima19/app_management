@@ -162,7 +162,6 @@ export default function BarView({
           </p>
         ) : (
           <div className="space-y-6">
-            {" "}
             {/* Always 1 column on tablet */}
             {activeOrders.map((order) => {
               // ✅ Calculate earliest item time for this order
