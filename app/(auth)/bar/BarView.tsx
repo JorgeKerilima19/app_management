@@ -1,4 +1,3 @@
-// app/bar/BarView.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -125,7 +124,6 @@ export default function BarView({
     loadOrders();
   };
 
-  // ✅ Updated getCardStyles to use earliest item time
   const getCardStyles = (earliestItemTime: number) => {
     const ageMin = (Date.now() - earliestItemTime) / 60000;
     if (ageMin < 5) {
@@ -162,9 +160,7 @@ export default function BarView({
           </p>
         ) : (
           <div className="space-y-6">
-            {/* Always 1 column on tablet */}
             {activeOrders.map((order) => {
-              // ✅ Calculate earliest item time for this order
               const earliestItemTime = Math.min(
                 ...order.items.map((item) => item.itemOrderedAt.getTime()),
               );

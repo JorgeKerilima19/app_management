@@ -1,8 +1,9 @@
-// app/bar/actions.ts
 "use server";
 
 import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
+import { deductInventoryForOrderItem } from "@/lib/inventory";
 
 export type BarOrder = {
   id: string;
@@ -16,7 +17,7 @@ export type BarOrder = {
     quantity: number;
     notes: string | null;
     categoryName: string;
-    itemOrderedAt: Date; // ✅ Add this field
+    itemOrderedAt: Date;
   }[];
   orderUpdatedAt: Date;
 };
@@ -184,9 +185,25 @@ export async function fetchPreparedBarToday(): Promise<PreparedBarOrder[]> {
 }
 
 export async function markBarOrderAsReady(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user || !["BARISTA", "OWNER", "ADMIN"].includes(user.role)) {
+    throw new Error("No autorizado");
+  }
+
   const orderId = formData.get("orderId")?.toString();
   if (!orderId) return;
 
+  // Fetch bar items that are still pending/preparing to deduct inventory only once
+  const barItems = await prisma.orderItem.findMany({
+    where: {
+      orderId,
+      menuItem: { station: "BAR" },
+      status: { in: ["PENDING", "PREPARING"] },
+    },
+    select: { id: true },
+  });
+
+  // Mark all bar items in the order as READY
   await prisma.orderItem.updateMany({
     where: {
       orderId,
@@ -195,10 +212,27 @@ export async function markBarOrderAsReady(formData: FormData) {
     data: { status: "READY" },
   });
 
+  // Deduct inventory for each eligible item (same pattern as kitchen)
+  for (const item of barItems) {
+    try {
+      const result = await deductInventoryForOrderItem(item.id);
+      if (result && !result.skipped) {
+        console.log(
+          `Inventory deducted for ${result.menuItemName}:`,
+          result.deductions,
+        );
+      }
+    } catch (error) {
+      console.error("Failed to deduct inventory for bar item:", error);
+    }
+  }
+
+  // Touch order timestamp for UI reactivity
   await prisma.order.update({
     where: { id: orderId },
     data: { updatedAt: new Date() },
   });
 
   revalidatePath("/bar");
+  return { success: true };
 }
