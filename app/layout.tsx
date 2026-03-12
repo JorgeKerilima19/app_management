@@ -1,4 +1,3 @@
-// app/layout.tsx
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -22,12 +21,14 @@ export default async function RootLayout({
     <html lang="en">
       <body className={`${inter.className} bg-white min-h-screen`}>
         {showSidebar ? (
-          <div className="flex">
+          <div className="flex min-h-screen">
             <AdminSidebar user={user} />
-            <main className="flex-1 p-6 bg-white">{children}</main>
+            <main className="flex-1 p-4 md:p-6 bg-white pt-16 md:pt-6">
+              {children}
+            </main>
           </div>
         ) : (
-          <main className="p-0 md:p-4 bg-white">{children}</main>
+          <main className="p-0 md:p-4 bg-white min-h-screen">{children}</main>
         )}
       </body>
     </html>
