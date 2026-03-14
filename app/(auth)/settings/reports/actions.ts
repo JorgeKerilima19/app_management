@@ -10,6 +10,7 @@ import {
   endOfMonth,
   parseISO,
 } from "date-fns";
+
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
 
 const REPORT_TIMEZONE = "America/Lima";
@@ -21,6 +22,47 @@ function toNumber(value: any): number {
     return value.toNumber();
   }
   return parseFloat(value.toString());
+}
+
+function getLimaDateRange(
+  dateRange: string,
+  rangeType: "day" | "week" | "month" | "all",
+): { startDate: Date; endDate: Date } {
+  if (rangeType === "all") {
+    return {
+      startDate: new Date("2020-01-01T00:00:00"),
+      endDate: new Date(),
+    };
+  }
+
+  if (rangeType === "day") {
+    const start = new Date(`${dateRange}T00:00:00`);
+    const end = new Date(`${dateRange}T23:59:59.999`);
+    return { startDate: start, endDate: end };
+  }
+
+  if (rangeType === "week") {
+    const inputDate = parseISO(dateRange);
+    const weekStart = startOfWeek(inputDate, { weekStartsOn: 1 });
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+    weekEnd.setHours(23, 59, 59, 999);
+    return { startDate: weekStart, endDate: weekEnd };
+  }
+
+  if (rangeType === "month") {
+    const [year, month] = dateRange.split("-").map(Number);
+    const start = startOfMonth(new Date(year, month - 1, 1));
+    start.setHours(0, 0, 0, 0);
+    const end = endOfMonth(start);
+    end.setHours(23, 59, 59, 999);
+    return { startDate: start, endDate: end };
+  }
+
+  return {
+    startDate: new Date("2020-01-01T00:00:00"),
+    endDate: new Date(),
+  };
 }
 
 export async function getReportData({
@@ -36,44 +78,10 @@ export async function getReportData({
   checksPerPage?: number;
   categoryId?: string;
 }) {
-  let startDate: Date;
-  let endDate: Date;
+  // ✅ Get Lima-local date range (no timezone conversion)
+  const { startDate, endDate } = getLimaDateRange(dateRange, rangeType);
 
-  if (rangeType === "all") {
-    startDate = new Date("2020-01-01");
-    endDate = new Date();
-    startDate = fromZonedTime(startDate, REPORT_TIMEZONE);
-    endDate = fromZonedTime(endDate, REPORT_TIMEZONE);
-  } else if (rangeType === "day") {
-    const startOfDay = parseISO(dateRange);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(startOfDay);
-    endOfDay.setHours(23, 59, 59, 999);
-    startDate = fromZonedTime(startOfDay, REPORT_TIMEZONE);
-    endDate = fromZonedTime(endOfDay, REPORT_TIMEZONE);
-  } else if (rangeType === "week") {
-    const inputDate = parseISO(dateRange);
-    const weekStartLocal = startOfWeek(inputDate, { weekStartsOn: 1 });
-    weekStartLocal.setHours(0, 0, 0, 0);
-    const weekEndLocal = endOfWeek(weekStartLocal, { weekStartsOn: 1 });
-    weekEndLocal.setHours(23, 59, 59, 999);
-    startDate = fromZonedTime(weekStartLocal, REPORT_TIMEZONE);
-    endDate = fromZonedTime(weekEndLocal, REPORT_TIMEZONE);
-  } else if (rangeType === "month") {
-    const startOfMonthLocal = startOfMonth(parseISO(`${dateRange}-01`));
-    startOfMonthLocal.setHours(0, 0, 0, 0);
-    const endOfMonthLocal = endOfMonth(startOfMonthLocal);
-    endOfMonthLocal.setHours(23, 59, 59, 999);
-    startDate = fromZonedTime(startOfMonthLocal, REPORT_TIMEZONE);
-    endDate = fromZonedTime(endOfMonthLocal, REPORT_TIMEZONE);
-  } else {
-    startDate = new Date("2020-01-01");
-    endDate = new Date();
-    startDate = fromZonedTime(startDate, REPORT_TIMEZONE);
-    endDate = fromZonedTime(endDate, REPORT_TIMEZONE);
-  }
-
-  // === DAILY SUMMARY (for day range) ===
+  // === DAILY SUMMARY (for day range only) ===
   let dailySummary = null;
   if (rangeType === "day") {
     const summaryDate = new Date(dateRange);
@@ -83,15 +91,17 @@ export async function getReportData({
     });
   }
 
-  // === SALES SUMMARY ===
+  // === SALES SUMMARY: Filter by check.closedAt for consistency ===
   let totalCash = 0;
   let totalYape = 0;
   let totalOverall = 0;
 
   const payments = await prisma.payment.findMany({
     where: {
-      createdAt: { gte: startDate, lte: endDate },
-      check: { status: "CLOSED" },
+      check: {
+        status: "CLOSED",
+        closedAt: { gte: startDate, lte: endDate }, // ✅ Use closedAt, not createdAt
+      },
     },
   });
 
@@ -109,14 +119,16 @@ export async function getReportData({
 
   totalOverall = payments.reduce((sum, p) => sum + toNumber(p.amount), 0);
 
-  // === DAILY CASH FLOW ===
+  // === DAILY CASH FLOW (for day range) ===
   let dailyCashFlow = null;
   if (rangeType === "day" && dailySummary) {
     const dayPayments = await prisma.payment.findMany({
       where: {
-        createdAt: { gte: startDate, lte: endDate },
+        check: {
+          status: "CLOSED",
+          closedAt: { gte: startDate, lte: endDate },
+        },
         method: { in: ["CASH", "MIXED"] },
-        check: { status: "CLOSED" },
       },
     });
 
@@ -134,15 +146,14 @@ export async function getReportData({
     };
   }
 
-  // === ITEMS SOLD ===
+  // === ITEMS SOLD: Filter by check.closedAt ===
   const itemGroups = await prisma.orderItem.groupBy({
     by: ["menuItemId"],
     where: {
-      createdAt: { gte: startDate, lte: endDate },
       order: {
         check: {
           status: "CLOSED",
-          closedAt: { gte: startDate, lte: endDate },
+          closedAt: { gte: startDate, lte: endDate }, // ✅ Consistent filter
         },
       },
       menuItem: categoryId ? { categoryId } : undefined,
@@ -174,13 +185,13 @@ export async function getReportData({
     totalQuantity: group._sum.quantity || 0,
   }));
 
-  // === CHECKS ===
+  // === CHECKS: Filter by closedAt ===
   const skip = (page - 1) * checksPerPage;
 
   const checks = await prisma.check.findMany({
     where: {
-      closedAt: { gte: startDate, lte: endDate },
       status: "CLOSED",
+      closedAt: { gte: startDate, lte: endDate }, // ✅ Consistent
     },
     include: {
       orders: {
@@ -201,6 +212,7 @@ export async function getReportData({
     skip,
   });
 
+  // Fetch table info for display
   const allCheckTableIds = new Set<string>();
   checks.forEach((check) => {
     try {
@@ -255,10 +267,10 @@ export async function getReportData({
       });
     });
 
+    // ✅ Format date directly (DB is already in Lima time)
     let formattedDate = "Fecha desconocida";
     if (check.closedAt !== null) {
-      const closedAtZoned = toZonedTime(check.closedAt, REPORT_TIMEZONE);
-      formattedDate = format(closedAtZoned, "yyyy-MM-dd HH:mm");
+      formattedDate = format(check.closedAt, "yyyy-MM-dd HH:mm");
     }
 
     const paymentMethodsUsed = Array.from(
@@ -282,8 +294,8 @@ export async function getReportData({
 
   const totalChecks = await prisma.check.count({
     where: {
-      closedAt: { gte: startDate, lte: endDate },
       status: "CLOSED",
+      closedAt: { gte: startDate, lte: endDate },
     },
   });
 
@@ -292,14 +304,12 @@ export async function getReportData({
     orderBy: { name: "asc" },
   });
 
-  const salesData = {
-    totalCash: toNumber(totalCash),
-    totalYape: toNumber(totalYape),
-    totalOverall: toNumber(totalOverall),
-  };
-
   return {
-    sales: salesData,
+    sales: {
+      totalCash: toNumber(totalCash),
+      totalYape: toNumber(totalYape),
+      totalOverall: toNumber(totalOverall),
+    },
     itemsSold: allItemsSold,
     checks: serializedChecks,
     pagination: {

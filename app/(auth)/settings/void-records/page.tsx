@@ -15,17 +15,42 @@ async function getVoidDetails(record: any) {
           order: {
             include: {
               check: {
-                include: { tables: true },
+                include: {
+                  tables: { select: { number: true } },
+                  openedBy: { select: { name: true } },
+                },
               },
             },
           },
         },
       });
+
       if (!item) return "Item no encontrado";
-      const tableNumbers = item.order.check.tables
-        .map((t: any) => t.number)
-        .join(", ");
-      return `${item.menuItem.name} (x${item.quantity}) — Mesa ${tableNumbers}`;
+
+      // 👇 FIX: Get table numbers from relation OR from tableIds field
+      let tableNumbers = "N/A";
+      if (item.order.check.tables && item.order.check.tables.length > 0) {
+        tableNumbers = item.order.check.tables
+          .map((t: any) => t.number)
+          .join(", ");
+      } else if (item.order.check.tableIds) {
+        try {
+          const tableIdArray = JSON.parse(
+            item.order.check.tableIds,
+          ) as string[];
+          const tables = await prisma.table.findMany({
+            where: { id: { in: tableIdArray } },
+            select: { number: true },
+          });
+          tableNumbers = tables.map((t: any) => t.number).join(", ") || "N/A";
+        } catch {
+          tableNumbers = "N/A";
+        }
+      }
+
+      const waiterName = item.order.check.openedBy?.name || "Desconocido";
+
+      return `${item.menuItem.name} (x${item.quantity}) — Mesa ${tableNumbers} • Mesero: ${waiterName}`;
     }
 
     if (record.target === "ORDER") {
@@ -33,29 +58,120 @@ async function getVoidDetails(record: any) {
         where: { id: record.targetId },
         include: {
           check: {
-            include: { tables: true },
+            include: {
+              tables: { select: { number: true } },
+              openedBy: { select: { name: true } },
+            },
           },
         },
       });
+
       if (!order) return "Orden no encontrada";
-      const tableNumbers = order.check.tables
-        .map((t: any) => t.number)
-        .join(", ");
-      return `Orden — Mesa ${tableNumbers}`;
+
+      // 👇 FIX: Get table numbers from relation OR from tableIds field
+      let tableNumbers = "N/A";
+      if (order.check.tables && order.check.tables.length > 0) {
+        tableNumbers = order.check.tables.map((t: any) => t.number).join(", ");
+      } else if (order.check.tableIds) {
+        try {
+          const tableIdArray = JSON.parse(order.check.tableIds) as string[];
+          const tables = await prisma.table.findMany({
+            where: { id: { in: tableIdArray } },
+            select: { number: true },
+          });
+          tableNumbers = tables.map((t: any) => t.number).join(", ") || "N/A";
+        } catch {
+          tableNumbers = "N/A";
+        }
+      }
+
+      const waiterName = order.check.openedBy?.name || "Desconocido";
+
+      return `Orden — Mesa ${tableNumbers} • Mesero: ${waiterName}`;
     }
 
     if (record.target === "CHECK") {
       const check = await prisma.check.findUnique({
         where: { id: record.targetId },
         include: {
-          tables: true,
+          tables: { select: { number: true } },
+          openedBy: { select: { name: true, role: true } },
+          orders: {
+            include: {
+              items: {
+                where: { status: { not: "VOIDED" } },
+                include: {
+                  menuItem: { select: { name: true } },
+                },
+              },
+            },
+          },
         },
       });
+
       if (!check) return "Cuenta no encontrada";
-      const tableNumbers = check.tables.map((t: any) => t.number).join(", ");
-      return `Cuenta — Mesas ${tableNumbers} (Total: S/${Number(
-        check.total
-      ).toFixed(2)})`;
+
+      let tableNumbers = "N/A";
+      if (check.tables && check.tables.length > 0) {
+        tableNumbers = check.tables.map((t: any) => t.number).join(", ");
+      } else if (check.tableIds) {
+        try {
+          const tableIdArray = JSON.parse(check.tableIds) as string[];
+          const tables = await prisma.table.findMany({
+            where: { id: { in: tableIdArray } },
+            select: { number: true },
+          });
+          tableNumbers = tables.map((t: any) => t.number).join(", ") || "N/A";
+        } catch {
+          tableNumbers = "N/A";
+        }
+      }
+
+      const totalFormatted = `S/${Number(check.total).toFixed(2)}`;
+
+      // Build items summary
+      const allItems = check.orders.flatMap((order: any) =>
+        order.items.map((item: any) => ({
+          name: item.menuItem.name,
+          quantity: item.quantity,
+        })),
+      );
+
+      let itemsSummary = "Sin items";
+      if (allItems.length > 0) {
+        const itemCount = allItems.reduce(
+          (sum: number, it: any) => sum + it.quantity,
+          0,
+        );
+        const uniqueItems = Array.from(
+          new Map(
+            allItems.map((it: any) => [`${it.name}|${it.quantity}`, it]),
+          ).values(),
+        );
+
+        const displayItems = uniqueItems
+          .slice(0, 3)
+          .map((it: any) => `${it.name} x${it.quantity}`);
+        const remaining = uniqueItems.length - 3;
+
+        if (remaining > 0) {
+          itemsSummary = `${displayItems.join(", ")}... y ${remaining} más`;
+        } else {
+          itemsSummary = displayItems.join(", ");
+        }
+
+        itemsSummary = `${itemCount} item${itemCount > 1 ? "s" : ""}: ${itemsSummary}`;
+      }
+
+      const openedBy = check.openedBy?.name || "Desconocido";
+      const openedAt = check.openedAt
+        ? format(new Date(check.openedAt), "HH:mm")
+        : "—";
+
+      return `Cuenta — Mesas ${tableNumbers}
+• Total: ${totalFormatted}
+• ${itemsSummary}
+• Mesero: ${openedBy} a las ${openedAt}`.trim();
     }
 
     return "Desconocido";
@@ -131,7 +247,7 @@ export default async function VoidRecordsPage({
     voidRecords.map(async (record) => {
       const details = await getVoidDetails(record);
       return { ...record, details };
-    })
+    }),
   );
 
   // Fetch all users for filter dropdown
@@ -281,19 +397,19 @@ export default async function VoidRecordsPage({
                           record.target === "CHECK"
                             ? "bg-red-100 text-red-800"
                             : record.target === "ORDER"
-                            ? "bg-orange-100 text-orange-800"
-                            : "bg-yellow-100 text-yellow-800"
+                              ? "bg-orange-100 text-orange-800"
+                              : "bg-yellow-100 text-yellow-800"
                         }`}
                       >
                         {record.target === "CHECK"
                           ? "Cuenta Anulada"
                           : record.target === "ORDER"
-                          ? "Orden Cancelada"
-                          : "Item Anulado"}
+                            ? "Orden Cancelada"
+                            : "Item Anulado"}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
-                      {record.details}
+                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs whitespace-pre-line wrap-break-word">
+                      <span className="text-gray-900">{record.details}</span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
                       {record.reason}
