@@ -1,4 +1,4 @@
-/// app/dashboard/close/CloseClient.tsx
+// app/dashboard/close/CloseClient.tsx
 "use client";
 
 import { useState, useTransition } from "react";
@@ -14,6 +14,18 @@ type MenuItem = {
   category: { name: string } | null;
 };
 
+type StorageTransaction = {
+  id: string;
+  type: string;
+  storageItemName: string;
+  quantityChange: number;
+  costPerUnit: number;
+  subtotal: number;
+  category: string;
+  performedBy: string;
+  createdAt: Date;
+};
+
 type ClosingData = {
   dailySummary: {
     id: string;
@@ -24,6 +36,13 @@ type ClosingData = {
   sales: {
     totalCash: number;
     totalYape: number;
+    totalOverall: number;
+  };
+  spendings: {
+    total: number;
+    netProfit: number;
+    marginPercent: number;
+    items: StorageTransaction[];
   };
   itemsSold: {
     menuItem: MenuItem | null;
@@ -38,7 +57,9 @@ type ClosingData = {
     unit: string;
     category: string | null;
     notes: string | null;
+    costPerUnit: number | null;
     updatedAt: Date;
+    storage_transfer: number;
   }[];
   categories: {
     id: string;
@@ -79,8 +100,10 @@ export default function CloseClient({
     });
   };
 
-  const totalSales = initialData.sales.totalCash + initialData.sales.totalYape;
-  const closingAmount = totalSales;
+  const totalSales = initialData.sales.totalOverall;
+  const totalSpendings = initialData.spendings.total;
+  const netProfit = initialData.spendings.netProfit;
+  const marginPercent = initialData.spendings.marginPercent;
 
   const filteredItems = selectedCategory
     ? initialData.itemsSold.filter(
@@ -104,6 +127,8 @@ export default function CloseClient({
   };
 
   const exportToExcel = () => {
+    if (!initialData) return;
+
     const worksheetData: any[][] = [];
 
     // Header
@@ -113,8 +138,8 @@ export default function CloseClient({
     ]);
     worksheetData.push([]);
 
-    // Daily Summary
-    worksheetData.push(["RESUMEN DIARIO"]);
+    // Financial Summary
+    worksheetData.push(["RESUMEN FINANCIERO"]);
     worksheetData.push(["Concepto", "Monto (S/)"]);
     worksheetData.push([
       "Apertura",
@@ -122,9 +147,15 @@ export default function CloseClient({
     ]);
     worksheetData.push(["Total Ventas Cash", initialData.sales.totalCash]);
     worksheetData.push(["Total Ventas Yape", initialData.sales.totalYape]);
+    worksheetData.push(["Total Ventas", initialData.sales.totalOverall]);
     worksheetData.push([
-      "Total Ventas",
-      initialData.sales.totalCash + initialData.sales.totalYape,
+      "Gastos (Compras + Mermas)",
+      initialData.spendings.total,
+    ]);
+    worksheetData.push(["Neto del Día", initialData.spendings.netProfit]);
+    worksheetData.push([
+      `Margen (%)`,
+      `${initialData.spendings.marginPercent.toFixed(2)}%`,
     ]);
     worksheetData.push([]);
 
@@ -152,11 +183,41 @@ export default function CloseClient({
     });
     worksheetData.push([]);
 
+    // Storage Transactions (Spendings)
+    if (initialData.spendings.items.length > 0) {
+      worksheetData.push(["GASTOS DE ALMACÉN"]);
+      worksheetData.push([
+        "Tipo",
+        "Producto",
+        "Categoría",
+        "Cantidad",
+        "Costo Unitario (S/)",
+        "Subtotal (S/)",
+        "Responsable",
+      ]);
+
+      initialData.spendings.items.forEach((item) => {
+        worksheetData.push([
+          item.type === "PURCHASE" ? "Compra" : "Merma",
+          item.storageItemName,
+          item.category,
+          item.quantityChange.toFixed(2),
+          item.costPerUnit.toFixed(2),
+          item.subtotal.toFixed(2),
+          item.performedBy,
+        ]);
+      });
+      worksheetData.push([]);
+    }
+
+    // Inventory Changes
     if (initialData.inventoryChanges.length > 0) {
       worksheetData.push(["MOVIMIENTOS DE INVENTARIO"]);
       worksheetData.push([
         "Producto",
         "Stock Actual",
+        "Transferido",
+        "Costo Unit. (S/)",
         "Unidad",
         "Categoría",
         "Última Modificación",
@@ -166,6 +227,8 @@ export default function CloseClient({
         worksheetData.push([
           item.name,
           item.quantity.toFixed(2),
+          (item.storage_transfer || 0).toFixed(2),
+          item.costPerUnit ? item.costPerUnit.toFixed(2) : "—",
           item.unit,
           item.category || "—",
           item.updatedAt.toLocaleString("es-PE"),
@@ -189,9 +252,9 @@ export default function CloseClient({
         worksheetData.push([
           record.voidedBy?.name || "Desconocido",
           record.target,
-          record.targetDetails,
+          record.targetDetails || "Sin detalles",
           record.totalVoided,
-          record.reason,
+          record.reason || "—",
         ]);
       });
       worksheetData.push([]);
@@ -206,9 +269,11 @@ export default function CloseClient({
     ]);
     worksheetData.push(["Total Cash", initialData.sales.totalCash]);
     worksheetData.push(["Total Yape", initialData.sales.totalYape]);
+    worksheetData.push(["Total Gastos", initialData.spendings.total]);
+    worksheetData.push(["Neto del Día", initialData.spendings.netProfit]);
     worksheetData.push([
-      "Cierre de ventas",
-      initialData.sales.totalCash + initialData.sales.totalYape,
+      "Margen",
+      `${initialData.spendings.marginPercent.toFixed(2)}%`,
     ]);
 
     // Create worksheet
@@ -246,16 +311,17 @@ export default function CloseClient({
       ) {
         for (let colIndex = 0; colIndex < row.length; colIndex++) {
           const colLetter = String.fromCharCode(65 + colIndex);
-          boldCells.add(`${colLetter}${rowIndex + 1}`);
+          boldCells.add(`${colLetter}${rowIndex + 2}`);
         }
       } else if (
         (row.length >= 2 &&
           typeof row[0] === "string" &&
           row[0].includes("Total")) ||
-        row[0] === "Cierre de ventas"
+        row[0] === "Neto del Día" ||
+        row[0] === "Margen"
       ) {
         boldCells.add(`A${rowIndex + 1}`);
-        if (row[0] === "Cierre de ventas") boldCells.add(`B${rowIndex + 1}`);
+        boldCells.add(`B${rowIndex + 1}`);
       }
       rowIndex++;
     }
@@ -320,11 +386,11 @@ export default function CloseClient({
         </div>
       )}
 
-      {/* Daily Summary */}
+      {/* Financial Summary - UPDATED with Breakdown */}
       {initialData.dailySummary && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Resumen Diario
+            Resumen Financiero
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
@@ -346,11 +412,43 @@ export default function CloseClient({
               </p>
             </div>
             <div className="bg-violet-50 border border-violet-200 rounded-lg p-4 text-center">
-              <h3 className="text-lg font-bold text-violet-800">
-                Total Ventas
-              </h3>
-              <p className="text-xl md:text-2xl font-bold mt-2 text-gray-900">
-                S/ {closingAmount.toFixed(2)}
+              <h3 className="text-lg font-bold text-violet-800">Neto</h3>
+              <p
+                className={`text-xl md:text-2xl font-bold mt-2 ${
+                  netProfit >= 0 ? "text-green-700" : "text-red-700"
+                }`}
+              >
+                S/ {netProfit.toFixed(2)}
+              </p>
+
+              {/* ✅ Subfields for Ventas, Gastos, Ganancias */}
+              <div className="mt-3 pt-3 border-t border-violet-200 space-y-1">
+                <div className="flex justify-between text-lg">
+                  <span className="text-gray-600">Ventas:</span>
+                  <span className="font-medium text-gray-900">
+                    S/ {totalSales.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-lg">
+                  <span className="text-gray-600">Gastos:</span>
+                  <span className="font-medium text-orange-700">
+                    - S/ {totalSpendings.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-lg font-semibold">
+                  <span className="text-gray-700">Ganancia:</span>
+                  <span
+                    className={`${
+                      netProfit >= 0 ? "text-green-700" : "text-red-700"
+                    }`}
+                  >
+                    S/ {netProfit.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-600 mt-3 pt-2 border-t border-violet-200">
+                ({marginPercent.toFixed(1)}% margen)
               </p>
             </div>
           </div>
@@ -362,6 +460,79 @@ export default function CloseClient({
               </p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Storage Transactions (Spendings) - NEW SECTION */}
+      {initialData.spendings.items.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+            Gastos de Almacén ({initialData.spendings.items.length})
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Tipo
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Producto
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Categoría
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Cantidad
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Costo Unit.
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Subtotal
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Responsable
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {initialData.spendings.items.map((item) => (
+                  <tr key={item.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          item.type === "PURCHASE"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {item.type === "PURCHASE" ? "Compra" : "Merma"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {item.storageItemName}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      {item.category}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      {item.quantityChange.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      S/ {item.costPerUnit.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                      S/ {item.subtotal.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      {item.performedBy}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -481,6 +652,7 @@ export default function CloseClient({
         )}
       </div>
 
+      {/* Inventory Changes Table - UPDATED with Cost Column */}
       {initialData.inventoryChanges.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
@@ -497,7 +669,10 @@ export default function CloseClient({
                     Stock Actual
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                    Transferido desde Almacén
+                    Transferido
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Costo Unit.
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                     Unidad
@@ -520,6 +695,14 @@ export default function CloseClient({
                       {item.quantity.toFixed(2)} {item.unit}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      {(item.storage_transfer || 0).toFixed(2)} {item.unit}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      {item.costPerUnit
+                        ? `S/ ${item.costPerUnit.toFixed(2)}`
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                       {item.unit}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
@@ -536,7 +719,7 @@ export default function CloseClient({
         </div>
       )}
 
-      {/* Void Records */}
+      {/* Void Records - UPDATED */}
       {initialData.voidRecords.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
@@ -572,20 +755,33 @@ export default function CloseClient({
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                       {record.voidedBy?.name || "Desconocido"}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                      {record.target}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          record.target === "Cuenta Anulada"
+                            ? "bg-red-100 text-red-800"
+                            : record.target === "Orden Anulada"
+                              ? "bg-orange-100 text-orange-800"
+                              : "bg-yellow-100 text-yellow-800"
+                        }`}
+                      >
+                        {record.target}
+                      </span>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                      {record.targetDetails}
+                    <td className="px-4 py-3 text-sm text-gray-900 max-w-md">
+                      {record.targetDetails || "Sin detalles"}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                       {record.totalVoided}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                      {record.reason}
+                      {record.reason || "—"}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(record.createdAt).toLocaleTimeString()}
+                      {new Date(record.createdAt).toLocaleTimeString("es-PE", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </td>
                   </tr>
                 ))}

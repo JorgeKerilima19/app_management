@@ -146,6 +146,30 @@ export async function getReportData({
     };
   }
 
+  // === SPENDINGS (add after sales calculation) ===
+  const storageTransactions = await prisma.storageTransaction.findMany({
+    where: {
+      type: { in: ["PURCHASE", "WASTE"] },
+      createdAt: { gte: startDate, lte: endDate },
+      storageItem: { costPerUnit: { not: null } },
+    },
+    include: {
+      storageItem: {
+        select: { costPerUnit: true, name: true },
+      },
+    },
+  });
+
+  const totalSpendings = storageTransactions.reduce((sum, t) => {
+    const cost = toNumber(t.storageItem.costPerUnit || 0);
+    const qty =
+      t.quantityChange > 0 ? t.quantityChange : Math.abs(t.quantityChange);
+    return sum + qty * cost;
+  }, 0);
+
+  const netProfit = totalOverall - totalSpendings;
+  const marginPercent = totalOverall > 0 ? (netProfit / totalOverall) * 100 : 0;
+
   // === ITEMS SOLD: Filter by check.closedAt ===
   const itemGroups = await prisma.orderItem.groupBy({
     by: ["menuItemId"],
@@ -309,6 +333,11 @@ export async function getReportData({
       totalCash: toNumber(totalCash),
       totalYape: toNumber(totalYape),
       totalOverall: toNumber(totalOverall),
+    },
+    spendings: {
+      total: totalSpendings,
+      netProfit,
+      marginPercent,
     },
     itemsSold: allItemsSold,
     checks: serializedChecks,

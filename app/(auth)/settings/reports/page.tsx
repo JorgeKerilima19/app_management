@@ -248,6 +248,33 @@ export default function ReportsPage() {
               </div>
             </div>
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-6 text-center">
+              <h3 className="text-lg font-bold text-orange-800">Gastos</h3>
+              <p className="text-2xl font-bold mt-2 text-gray-900">
+                S/ {reportData?.spendings.total.toFixed(2)}
+              </p>
+              <p className="text-sm text-gray-600">Compras + Mermas</p>
+            </div>
+            <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
+              <h3 className="text-lg font-bold text-green-800">Neto</h3>
+              <p
+                className={`text-2xl font-bold mt-2 ${
+                  (reportData?.spendings.netProfit || 0) >= 0
+                    ? "text-green-700"
+                    : "text-red-700"
+                }`}
+              >
+                S/ {reportData?.spendings.netProfit.toFixed(2)}
+              </p>
+            </div>
+            <div className="bg-violet-50 border border-violet-200 rounded-xl p-6 text-center">
+              <h3 className="text-lg font-bold text-violet-800">Margen</h3>
+              <p className="text-2xl font-bold mt-2 text-gray-900">
+                {reportData?.spendings.marginPercent.toFixed(1)}%
+              </p>
+            </div>
+          </div>
         </div>
       )}
 

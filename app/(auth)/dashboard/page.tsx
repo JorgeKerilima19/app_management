@@ -80,9 +80,9 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* Payment Summary */}
+      {/* Payment Summary + Spendings - UPDATED */}
       {data.dailySummary?.status === "OPEN" && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
             <h3 className="text-lg font-bold text-green-800">Efectivo</h3>
             <p className="text-2xl font-bold mt-2 text-gray-900">
@@ -101,10 +101,55 @@ export default async function DashboardPage() {
               ({data.payments.yapePercentage.toFixed(1)}%)
             </p>
           </div>
-          <div className="bg-violet-50 border border-violet-200 rounded-lg p-4 text-center">
-            <h3 className="text-lg font-bold text-violet-800">Total</h3>
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
+            <h3 className="text-lg font-bold text-orange-800">Gastos</h3>
             <p className="text-2xl font-bold mt-2 text-gray-900">
-              S/ {data.payments.totalOverall.toFixed(2)}
+              S/ {data.spendings.total.toFixed(2)}
+            </p>
+            <p className="text-sm text-gray-600">Compras + Mermas</p>
+          </div>
+          <div className="bg-violet-50 border border-violet-200 rounded-lg p-4 text-center">
+            <h3 className="text-lg font-bold text-violet-800">Neto</h3>
+            <p
+              className={`text-2xl font-bold mt-2 ${
+                data.spendings.netProfit >= 0
+                  ? "text-green-700"
+                  : "text-red-700"
+              }`}
+            >
+              S/ {data.spendings.netProfit.toFixed(2)}
+            </p>
+
+            {/* ✅ Subfields for Gastos and Ganancias */}
+            <div className="mt-3 pt-3 border-t border-violet-200 space-y-1">
+              <div className="flex justify-between text-lg">
+                <span className="text-gray-600">Ventas:</span>
+                <span className="font-medium text-gray-900">
+                  S/ {data.payments.totalOverall.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between text-lg">
+                <span className="text-gray-600">Gastos:</span>
+                <span className="font-medium text-orange-700">
+                  - S/ {data.spendings.total.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between text-lg font-semibold">
+                <span className="text-gray-700">Ganancia:</span>
+                <span
+                  className={`${
+                    data.spendings.netProfit >= 0
+                      ? "text-green-700"
+                      : "text-red-700"
+                  }`}
+                >
+                  S/ {data.spendings.netProfit.toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-600 mt-3 pt-2 border-t border-violet-200">
+              ({data.spendings.marginPercent.toFixed(1)}% margen)
             </p>
           </div>
         </div>
@@ -122,30 +167,26 @@ export default async function DashboardPage() {
               <p className="text-gray-500">Sin pedidos recientes</p>
             ) : (
               <div className="space-y-3">
-                {data.recentOrders
-                  .filter(
-                    (order: any) =>
-                      order.firstItemName &&
-                      order.firstItemName !== "Ítem desconocido",
-                  )
-                  .map((order: any) => (
-                    <div
-                      key={order.id}
-                      className="flex justify-between text-sm py-2 border-b border-gray-100"
-                    >
-                      <span className="font-medium">
+                {data.recentOrders.map((order: any) => (
+                  <div
+                    key={order.id}
+                    className="flex justify-between items-start text-sm py-2 border-b border-gray-100"
+                  >
+                    <div className="flex-1">
+                      <span className="font-medium text-gray-900">
                         Mesa {order.tableName}
                       </span>
-                      <span className="text-gray-600">
-                        {order.firstItemName}
-                      </span>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {order.firstItemName || "Sin items"}
+                      </p>
                     </div>
-                  ))}
+                  </div>
+                ))}
               </div>
             )}
           </div>
 
-          {/* Recent Voids */}
+          {/* Recent Voids - UPDATED */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">
               Anulaciones Recientes
@@ -157,12 +198,20 @@ export default async function DashboardPage() {
                 {data.recentVoids.map((voidRecord: any) => (
                   <div
                     key={voidRecord.id}
-                    className="flex justify-between text-sm py-2 border-b border-gray-100"
+                    className="flex justify-between items-start text-sm py-2 border-b border-gray-100"
                   >
-                    <span className="font-medium">
-                      {voidRecord.voidedBy?.name || "Desconocido"}
-                    </span>
-                    <span className="text-gray-600">{voidRecord.reason}</span>
+                    <div className="flex-1">
+                      <span className="font-medium text-gray-900">
+                        {voidRecord.targetDetails || "Desconocido"}
+                      </span>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {voidRecord.voidedBy?.name || "Desconocido"}
+                        {voidRecord.voidedBy?.role &&
+                          ` (${voidRecord.voidedBy.role})`}
+                        {" • "}
+                        {voidRecord.reason || "Sin motivo"}
+                      </p>
+                    </div>
                   </div>
                 ))}
               </div>
