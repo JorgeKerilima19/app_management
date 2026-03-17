@@ -1,11 +1,10 @@
-/// app/(auth)/storage/page.tsx
+/// app/storage/page.tsx
 import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import Link from "next/link";
 import StorageTable from "./StorageTable";
 
-// Serialize Decimal to number for client components
 function serializeStorageItem(item: any) {
   return {
     ...item,
@@ -21,17 +20,6 @@ function serializeStorageItem(item: any) {
   };
 }
 
-// ✅ Serialize inventory items too
-function serializeInventoryItem(item: any) {
-  return {
-    ...item,
-    currentQuantity:
-      typeof item.currentQuantity === "object"
-        ? parseFloat(item.currentQuantity.toString())
-        : item.currentQuantity,
-  };
-}
-
 export default async function StoragePage() {
   const user = await getCurrentUser();
   if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
@@ -42,15 +30,17 @@ export default async function StoragePage() {
     orderBy: { name: "asc" },
   });
 
-  // ✅ Fetch and serialize inventory items
+  const serializedItems = items.map(serializeStorageItem);
+
+  // Get unique categories for filter
+  const categories = Array.from(
+    new Set(serializedItems.map((item) => item.category).filter(Boolean)),
+  ).sort() as string[];
+
   const inventoryItems = await prisma.inventoryItem.findMany({
-    select: { id: true, name: true, unit: true, currentQuantity: true },
+    select: { id: true, name: true, unit: true },
     orderBy: { name: "asc" },
   });
-
-  // Serialize items before passing to client component
-  const serializedItems = items.map(serializeStorageItem);
-  const serializedInventoryItems = inventoryItems.map(serializeInventoryItem);
 
   return (
     <div className="space-y-8">
@@ -85,7 +75,8 @@ export default async function StoragePage() {
       ) : (
         <StorageTable
           items={serializedItems}
-          inventoryItems={serializedInventoryItems}
+          categories={categories}
+          inventoryItems={inventoryItems}
         />
       )}
     </div>
