@@ -99,13 +99,55 @@ export async function voidOrderItem(formData: FormData) {
 
   const item = await prisma.orderItem.findUnique({
     where: { id: orderItemId },
-    include: { order: { include: { check: true } } },
+    include: {
+      order: {
+        include: {
+          check: {
+            include: {
+              tables: true,
+            },
+          },
+        },
+      },
+      menuItem: {
+        include: { category: true },
+      },
+    },
   });
 
   if (!item) throw new Error("Item no encontrado");
   if (item.quantity < voidQuantity) {
     throw new Error("Cantidad a anular excede la cantidad del item");
   }
+
+  const table = item.order.check.tables[0];
+  const metadata = {
+    menuItem: {
+      id: item.menuItemId,
+      name: item.menuItem.name,
+      price: item.priceAtOrder.toString(),
+      category: item.menuItem.category?.name || null,
+      station: item.menuItem.station,
+    },
+    order: {
+      id: item.orderId,
+      checkId: item.order.checkId,
+    },
+    table: table
+      ? {
+          id: table.id,
+          number: table.number,
+          name: table.name,
+        }
+      : null,
+    quantities: {
+      voided: voidQuantity,
+      original: item.quantity,
+      remaining: item.quantity - voidQuantity,
+    },
+    checkTotalAtVoid: item.order.check.total.toString(),
+    voidedAt: new Date().toISOString(),
+  };
 
   await prisma.voidRecord.create({
     data: {
@@ -114,9 +156,11 @@ export async function voidOrderItem(formData: FormData) {
       reason,
       voidedById: user.id,
       note: `Anulado ${voidQuantity} de ${item.quantity}`,
+      metadata, // ← Store the full context here
     },
   });
 
+  // Proceed with deletion/update as before
   if (voidQuantity === item.quantity) {
     await prisma.orderItem.delete({ where: { id: orderItemId } });
   } else {

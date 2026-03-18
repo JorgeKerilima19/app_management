@@ -5,9 +5,66 @@ import prisma from "@/lib/prisma";
 import { format } from "date-fns";
 import Link from "next/link";
 
+interface VoidMetadata {
+  menuItem?: {
+    id: string;
+    name: string;
+    price: string;
+    category?: string | null;
+    station?: string;
+  };
+  order?: {
+    id: string;
+    checkId: string;
+  };
+  table?: {
+    id: string;
+    number: number;
+    name?: string | null;
+  } | null;
+  tables?: Array<{
+    id: string;
+    number: number;
+    name?: string | null;
+  }>;
+  quantities?: {
+    voided: number;
+    original: number;
+    remaining: number;
+  };
+  check?: {
+    id: string;
+    total: string;
+    itemCount: number;
+  };
+  checkTotalAtVoid?: string;
+  voidedAt?: string;
+  itemsSummary?: string; // Pre-computed for CHECK voids
+  waiterName?: string; // Pre-computed for easier display
+}
+
 async function getVoidDetails(record: any) {
   try {
+    // ✅ PRIORITY 1: Use metadata snapshot if available (new voids)
+    const metadata = record.metadata as VoidMetadata | null | undefined;
+
     if (record.target === "ORDER_ITEM") {
+      // 🎯 Use snapshot data if available
+      if (metadata?.menuItem) {
+        const tableInfo = metadata.table
+          ? `Mesa ${metadata.table.number}${metadata.table.name ? ` (${metadata.table.name})` : ""}`
+          : "Mesa N/A";
+        const qty = metadata.quantities?.voided || 1;
+        const price = parseFloat(metadata.menuItem.price || "0");
+        const amount = (price * qty).toFixed(2);
+        const category = metadata.menuItem.category
+          ? ` • ${metadata.menuItem.category}`
+          : "";
+
+        return `${metadata.menuItem.name}${category} ×${qty} — ${tableInfo} • S/${amount}`;
+      }
+
+      // 🔄 Fallback: Try to fetch from DB (for old voids before metadata was added)
       const item = await prisma.orderItem.findUnique({
         where: { id: record.targetId },
         include: {
@@ -16,7 +73,7 @@ async function getVoidDetails(record: any) {
             include: {
               check: {
                 include: {
-                  tables: { select: { number: true } },
+                  tables: { select: { number: true, name: true } },
                   openedBy: { select: { name: true } },
                 },
               },
@@ -25,13 +82,12 @@ async function getVoidDetails(record: any) {
         },
       });
 
-      if (!item) return "Item no encontrado";
+      if (!item || !item.menuItem) return "Item no encontrado";
 
-      // 👇 FIX: Get table numbers from relation OR from tableIds field
       let tableNumbers = "N/A";
-      if (item.order.check.tables && item.order.check.tables.length > 0) {
+      if (item.order.check.tables?.length) {
         tableNumbers = item.order.check.tables
-          .map((t: any) => t.number)
+          .map((t: any) => `${t.number}${t.name ? ` (${t.name})` : ""}`)
           .join(", ");
       } else if (item.order.check.tableIds) {
         try {
@@ -40,26 +96,40 @@ async function getVoidDetails(record: any) {
           ) as string[];
           const tables = await prisma.table.findMany({
             where: { id: { in: tableIdArray } },
-            select: { number: true },
+            select: { number: true, name: true },
           });
-          tableNumbers = tables.map((t: any) => t.number).join(", ") || "N/A";
+          tableNumbers =
+            tables
+              .map((t: any) => `${t.number}${t.name ? ` (${t.name})` : ""}`)
+              .join(", ") || "N/A";
         } catch {
           tableNumbers = "N/A";
         }
       }
 
       const waiterName = item.order.check.openedBy?.name || "Desconocido";
+      const amount = (Number(item.priceAtOrder) * item.quantity).toFixed(2);
 
-      return `${item.menuItem.name} (x${item.quantity}) — Mesa ${tableNumbers} • Mesero: ${waiterName}`;
+      return `${item.menuItem.name} ×${item.quantity} — Mesa ${tableNumbers} • S/${amount} • Mesero: ${waiterName}`;
     }
 
     if (record.target === "ORDER") {
+      // 🎯 Use snapshot if available
+      if (metadata?.tables?.length) {
+        const tableNumbers = metadata.tables
+          .map((t: any) => `${t.number}${t.name ? ` (${t.name})` : ""}`)
+          .join(", ");
+        const waiterName = metadata.waiterName || "Desconocido";
+        return `Orden — Mesa ${tableNumbers} • Mesero: ${waiterName}`;
+      }
+
+      // 🔄 Fallback to DB lookup
       const order = await prisma.order.findUnique({
         where: { id: record.targetId },
         include: {
           check: {
             include: {
-              tables: { select: { number: true } },
+              tables: { select: { number: true, name: true } },
               openedBy: { select: { name: true } },
             },
           },
@@ -68,41 +138,62 @@ async function getVoidDetails(record: any) {
 
       if (!order) return "Orden no encontrada";
 
-      // 👇 FIX: Get table numbers from relation OR from tableIds field
       let tableNumbers = "N/A";
-      if (order.check.tables && order.check.tables.length > 0) {
-        tableNumbers = order.check.tables.map((t: any) => t.number).join(", ");
+      if (order.check.tables?.length) {
+        tableNumbers = order.check.tables
+          .map((t: any) => `${t.number}${t.name ? ` (${t.name})` : ""}`)
+          .join(", ");
       } else if (order.check.tableIds) {
         try {
           const tableIdArray = JSON.parse(order.check.tableIds) as string[];
           const tables = await prisma.table.findMany({
             where: { id: { in: tableIdArray } },
-            select: { number: true },
+            select: { number: true, name: true },
           });
-          tableNumbers = tables.map((t: any) => t.number).join(", ") || "N/A";
+          tableNumbers =
+            tables
+              .map((t: any) => `${t.number}${t.name ? ` (${t.name})` : ""}`)
+              .join(", ") || "N/A";
         } catch {
           tableNumbers = "N/A";
         }
       }
 
       const waiterName = order.check.openedBy?.name || "Desconocido";
-
       return `Orden — Mesa ${tableNumbers} • Mesero: ${waiterName}`;
     }
 
     if (record.target === "CHECK") {
+      // 🎯 Use snapshot if available (most efficient!)
+      if (metadata?.check && metadata?.tables?.length) {
+        const tableNumbers = metadata.tables
+          .map((t: any) => `${t.number}${t.name ? ` (${t.name})` : ""}`)
+          .join(", ");
+        const totalFormatted = `S/${parseFloat(metadata.check.total || "0").toFixed(2)}`;
+        const itemsSummary =
+          metadata.itemsSummary || `${metadata.check.itemCount} items`;
+        const waiterName = metadata.waiterName || "Desconocido";
+        const voidedAt = metadata.voidedAt
+          ? format(new Date(metadata.voidedAt), "HH:mm")
+          : "—";
+
+        return `Cuenta — Mesas ${tableNumbers}
+• Total: ${totalFormatted}
+• ${itemsSummary}
+• Mesero: ${waiterName} a las ${voidedAt}`.trim();
+      }
+
+      // 🔄 Fallback to DB lookup (expensive, but safe for old data)
       const check = await prisma.check.findUnique({
         where: { id: record.targetId },
         include: {
-          tables: { select: { number: true } },
+          tables: { select: { number: true, name: true } },
           openedBy: { select: { name: true, role: true } },
           orders: {
             include: {
               items: {
                 where: { status: { not: "VOIDED" } },
-                include: {
-                  menuItem: { select: { name: true } },
-                },
+                include: { menuItem: { select: { name: true } } },
               },
             },
           },
@@ -112,27 +203,30 @@ async function getVoidDetails(record: any) {
       if (!check) return "Cuenta no encontrada";
 
       let tableNumbers = "N/A";
-      if (check.tables && check.tables.length > 0) {
-        tableNumbers = check.tables.map((t: any) => t.number).join(", ");
+      if (check.tables?.length) {
+        tableNumbers = check.tables
+          .map((t: any) => `${t.number}${t.name ? ` (${t.name})` : ""}`)
+          .join(", ");
       } else if (check.tableIds) {
         try {
           const tableIdArray = JSON.parse(check.tableIds) as string[];
           const tables = await prisma.table.findMany({
             where: { id: { in: tableIdArray } },
-            select: { number: true },
+            select: { number: true, name: true },
           });
-          tableNumbers = tables.map((t: any) => t.number).join(", ") || "N/A";
+          tableNumbers =
+            tables
+              .map((t: any) => `${t.number}${t.name ? ` (${t.name})` : ""}`)
+              .join(", ") || "N/A";
         } catch {
           tableNumbers = "N/A";
         }
       }
 
       const totalFormatted = `S/${Number(check.total).toFixed(2)}`;
-
-      // Build items summary
       const allItems = check.orders.flatMap((order: any) =>
         order.items.map((item: any) => ({
-          name: item.menuItem.name,
+          name: item.menuItem?.name || "Unknown",
           quantity: item.quantity,
         })),
       );
@@ -159,7 +253,6 @@ async function getVoidDetails(record: any) {
         } else {
           itemsSummary = displayItems.join(", ");
         }
-
         itemsSummary = `${itemCount} item${itemCount > 1 ? "s" : ""}: ${itemsSummary}`;
       }
 
@@ -211,7 +304,6 @@ export default async function VoidRecordsPage({
 
   // Build where clause
   const whereClause: any = {};
-
   if (startDate) {
     whereClause.createdAt = { ...whereClause.createdAt, gte: startDate };
   }
@@ -242,13 +334,11 @@ export default async function VoidRecordsPage({
     prisma.voidRecord.count({ where: whereClause }),
   ]);
 
-  // Fetch details for each record
-  const recordsWithDetails = await Promise.all(
-    voidRecords.map(async (record) => {
-      const details = await getVoidDetails(record);
-      return { ...record, details };
-    }),
-  );
+  // ✅ Fetch details: metadata is already included, so no extra DB calls for new voids!
+  const recordsWithDetails = voidRecords.map((record) => {
+    const details = getVoidDetailsSync(record); // Use sync version since metadata is inline
+    return { ...record, details };
+  });
 
   // Fetch all users for filter dropdown
   const allUsers = await prisma.user.findMany({
@@ -308,9 +398,9 @@ export default async function VoidRecordsPage({
               className="w-full p-2 border border-gray-300 rounded text-black bg-white"
             >
               <option value="">Todos</option>
-              {allUsers.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name}
+              {allUsers.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
                 </option>
               ))}
             </select>
@@ -408,7 +498,7 @@ export default async function VoidRecordsPage({
                             : "Item Anulado"}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs whitespace-pre-line wrap-break-word">
+                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs whitespace-pre-line break-words">
                       <span className="text-gray-900">{record.details}</span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
@@ -463,4 +553,57 @@ export default async function VoidRecordsPage({
       )}
     </div>
   );
+}
+
+// ✅ Sync version: uses metadata directly, no DB calls needed for new voids
+function getVoidDetailsSync(record: any): string {
+  try {
+    const metadata = record.metadata as VoidMetadata | null | undefined;
+
+    if (record.target === "ORDER_ITEM" && metadata?.menuItem) {
+      const tableInfo = metadata.table
+        ? `Mesa ${metadata.table.number}${metadata.table.name ? ` (${metadata.table.name})` : ""}`
+        : "Mesa N/A";
+      const qty = metadata.quantities?.voided || 1;
+      const price = parseFloat(metadata.menuItem.price || "0");
+      const amount = (price * qty).toFixed(2);
+      const category = metadata.menuItem.category
+        ? ` • ${metadata.menuItem.category}`
+        : "";
+      return `${metadata.menuItem.name}${category} ×${qty} — ${tableInfo} • S/${amount}`;
+    }
+
+    if (record.target === "ORDER" && metadata?.tables?.length) {
+      const tableNumbers = metadata.tables
+        .map((t: any) => `${t.number}${t.name ? ` (${t.name})` : ""}`)
+        .join(", ");
+      const waiterName = metadata.waiterName || "Desconocido";
+      return `Orden — Mesa ${tableNumbers} • Mesero: ${waiterName}`;
+    }
+
+    if (
+      record.target === "CHECK" &&
+      metadata?.check &&
+      metadata?.tables?.length
+    ) {
+      const tableNumbers = metadata.tables
+        .map((t: any) => `${t.number}${t.name ? ` (${t.name})` : ""}`)
+        .join(", ");
+      const totalFormatted = `S/${parseFloat(metadata.check.total || "0").toFixed(2)}`;
+      const itemsSummary =
+        metadata.itemsSummary || `${metadata.check.itemCount} items`;
+      const waiterName = metadata.waiterName || "Desconocido";
+      const voidedAt = metadata.voidedAt
+        ? format(new Date(metadata.voidedAt), "HH:mm")
+        : "—";
+      return `Cuenta — Mesas ${tableNumbers}
+• Total: ${totalFormatted}
+• ${itemsSummary}
+• Mesero: ${waiterName} a las ${voidedAt}`.trim();
+    }
+
+    return "Detalles no disponibles (registro anterior)";
+  } catch {
+    return "Error cargando detalles";
+  }
 }

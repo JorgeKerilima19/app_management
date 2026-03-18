@@ -225,6 +225,8 @@ model VoidRecord {
   voidedBy   User       @relation(fields: [voidedById], references: [id])
   note       String?
   createdAt  DateTime   @default(now())
+
+  metadata Json?
 }
 
 enum VoidTarget {

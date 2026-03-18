@@ -178,7 +178,7 @@ export async function fetchClosingSummary(
     };
   });
 
-  // === INVENTORY CHANGES - FIXED SQL QUERY ===
+  // === INVENTORY CHANGES ===
   const inventoryChanges = await prisma.$queryRaw`
   SELECT 
     i.id,
@@ -212,7 +212,7 @@ export async function fetchClosingSummary(
     orderBy: { name: "asc" },
   });
 
-  // === VOID RECORDS - Bulletproof Processing ===
+  // === ✅ VOID RECORDS - METADATA-FIRST APPROACH ===
   const voidRecords = await prisma.voidRecord.findMany({
     where: { createdAt: { gte: today, lte: tomorrow } },
     include: {
@@ -221,218 +221,47 @@ export async function fetchClosingSummary(
     orderBy: { createdAt: "desc" },
   });
 
-  const orderIds: string[] = [];
-  const orderItemIds: string[] = [];
-  const checkIds: string[] = [];
-
-  voidRecords.forEach((record) => {
-    if (record.target === "ORDER") orderIds.push(record.targetId);
-    else if (record.target === "ORDER_ITEM") orderItemIds.push(record.targetId);
-    else if (record.target === "CHECK") checkIds.push(record.targetId);
-  });
-
-  // ✅ Fetch OrderItems with menuItem relation
-  const orderItemsMap = new Map<
-    string,
-    { name: string; quantity: number; tableName?: string }
-  >();
-  if (orderItemIds.length > 0) {
-    const items = await prisma.orderItem.findMany({
-      where: { id: { in: orderItemIds } },
-      include: {
-        menuItem: { select: { name: true } },
-        order: {
-          include: {
-            check: {
-              select: { tableIds: true },
-            },
-          },
-        },
-      },
-    });
-
-    // Fetch tables for table names
-    const allTableIds = new Set<string>();
-    items.forEach((item) => {
-      try {
-        const ids = JSON.parse(item.order.check.tableIds as string);
-        if (Array.isArray(ids)) {
-          ids.forEach((id) => allTableIds.add(id));
-        }
-      } catch {}
-    });
-
-    const tables = await prisma.table.findMany({
-      where: { id: { in: Array.from(allTableIds) } },
-      select: { id: true, number: true, name: true },
-    });
-    const tableMap = new Map(
-      tables.map((t) => [t.id, t.name || `Mesa ${t.number}`]),
-    );
-
-    items.forEach((item) => {
-      let tableName = "N/A";
-      try {
-        const ids = JSON.parse(item.order.check.tableIds as string);
-        if (Array.isArray(ids) && ids.length > 0) {
-          tableName = tableMap.get(ids[0]) || "N/A";
-        }
-      } catch {}
-
-      orderItemsMap.set(item.id, {
-        name: item.menuItem?.name || "Ítem desconocido",
-        quantity: item.quantity,
-        tableName,
-      });
-    });
-  }
-
-  // ✅ Fetch Orders with items
-  const ordersMap = new Map<
-    string,
-    { items: { name: string; quantity: number }[]; tableName?: string }
-  >();
-  if (orderIds.length > 0) {
-    const orders = await prisma.order.findMany({
-      where: { id: { in: orderIds } },
-      include: {
-        items: {
-          include: { menuItem: { select: { name: true } } },
-        },
-        check: {
-          select: { tableIds: true },
-        },
-      },
-    });
-
-    // Fetch tables for table names
-    const allTableIds = new Set<string>();
-    orders.forEach((order) => {
-      try {
-        const ids = JSON.parse(order.check.tableIds as string);
-        if (Array.isArray(ids)) {
-          ids.forEach((id) => allTableIds.add(id));
-        }
-      } catch {}
-    });
-
-    const tables = await prisma.table.findMany({
-      where: { id: { in: Array.from(allTableIds) } },
-      select: { id: true, number: true, name: true },
-    });
-    const tableMap = new Map(
-      tables.map((t) => [t.id, t.name || `Mesa ${t.number}`]),
-    );
-
-    orders.forEach((order) => {
-      let tableName = "N/A";
-      try {
-        const ids = JSON.parse(order.check.tableIds as string);
-        if (Array.isArray(ids) && ids.length > 0) {
-          tableName = tableMap.get(ids[0]) || "N/A";
-        }
-      } catch {}
-
-      const items = order.items.map((i) => ({
-        name: i.menuItem?.name || "Ítem desconocido",
-        quantity: i.quantity,
-      }));
-      ordersMap.set(order.id, { items, tableName });
-    });
-  }
-
-  // ✅ Fetch Checks with orders and items
-  const checksMap = new Map<
-    string,
-    { items: { name: string; quantity: number }[]; tableNames?: string }
-  >();
-  if (checkIds.length > 0) {
-    const checks = await prisma.check.findMany({
-      where: { id: { in: checkIds } },
-      include: {
-        orders: {
-          include: {
-            items: {
-              include: { menuItem: { select: { name: true } } },
-            },
-          },
-        },
-        tables: { select: { number: true, name: true } },
-      },
-    });
-
-    checks.forEach((check) => {
-      const allItems: { name: string; quantity: number }[] = [];
-      check.orders.forEach((order) => {
-        order.items.forEach((item) => {
-          allItems.push({
-            name: item.menuItem?.name || "Ítem desconocido",
-            quantity: item.quantity,
-          });
-        });
-      });
-
-      const tableNames =
-        check.tables.length > 0
-          ? check.tables.map((t) => t.name || `Mesa ${t.number}`).join(", ")
-          : "N/A";
-
-      checksMap.set(check.id, { items: allItems, tableNames });
-    });
-  }
-
-  // ✅ Process voids with friendly type names and better fallbacks
   const processedVoidRecords = voidRecords.map((record) => {
-    let targetType = "";
-    let targetDetails = "";
-    let totalVoided = 0;
+    const metadata = record.metadata as any;
 
-    // ✅ Friendly type names
     const typeLabels: Record<string, string> = {
       ORDER_ITEM: "Item Anulado",
       ORDER: "Orden Anulada",
       CHECK: "Cuenta Anulada",
     };
-    targetType = typeLabels[record.target] || record.target;
+    const targetType = typeLabels[record.target] || record.target;
 
-    if (record.target === "ORDER_ITEM") {
-      const item = orderItemsMap.get(record.targetId);
-      if (item) {
-        targetDetails = `${item.name} (x${item.quantity}) — Mesa ${item.tableName}`;
-        totalVoided = item.quantity;
-      } else {
-        // ✅ Fallback: Use note field (stored at void time) or reason
-        targetDetails = record.note || record.reason || "Ítem no disponible";
-        totalVoided = 0;
-      }
-    } else if (record.target === "ORDER") {
-      const order = ordersMap.get(record.targetId);
-      if (order && order.items.length > 0) {
-        const itemSummary = order.items
-          .slice(0, 3)
-          .map((i) => `${i.name} (x${i.quantity})`)
-          .join(", ");
-        const remaining = order.items.length - 3;
-        targetDetails = `${itemSummary}${remaining > 0 ? `... y ${remaining} más` : ""} — Mesa ${order.tableName}`;
-        totalVoided = order.items.reduce((sum, i) => sum + i.quantity, 0);
-      } else {
-        targetDetails = record.note || record.reason || "Orden no disponible";
-        totalVoided = 0;
-      }
-    } else if (record.target === "CHECK") {
-      const check = checksMap.get(record.targetId);
-      if (check && check.items.length > 0) {
-        const itemSummary = check.items
-          .slice(0, 3)
-          .map((i) => `${i.name} (x${i.quantity})`)
-          .join(", ");
-        const remaining = check.items.length - 3;
-        targetDetails = `${itemSummary}${remaining > 0 ? `... y ${remaining} más` : ""} — Mesas ${check.tableNames}`;
-        totalVoided = check.items.reduce((sum, i) => sum + i.quantity, 0);
-      } else {
-        targetDetails = record.note || record.reason || "Cuenta no disponible";
-        totalVoided = 0;
-      }
+    let targetDetails = "";
+    let totalVoided = 0;
+
+    if (record.target === "ORDER_ITEM" && metadata?.menuItem) {
+      const tableInfo = metadata.table
+        ? `Mesa ${metadata.table.number}${metadata.table.name ? ` (${metadata.table.name})` : ""}`
+        : "Mesa N/A";
+      const qty = metadata.quantities?.voided || 1;
+      targetDetails = `${metadata.menuItem.name} ×${qty} — ${tableInfo}`;
+      totalVoided = qty;
+    } else if (
+      record.target === "CHECK" &&
+      metadata?.check &&
+      metadata?.tables?.length
+    ) {
+      const tableNames = metadata.tables
+        .map((t: any) => `Mesa ${t.number}${t.name ? ` (${t.name})` : ""}`)
+        .join(", ");
+      const itemCount = metadata.check.itemCount || 0;
+      targetDetails = `${itemCount} items — Mesas ${tableNames}`;
+      totalVoided = itemCount;
+    } else if (record.target === "ORDER" && metadata?.tables?.length) {
+      // 🎯 Order void with snapshot
+      const tableNames = metadata.tables
+        .map((t: any) => `Mesa ${t.number}${t.name ? ` (${t.name})` : ""}`)
+        .join(", ");
+      targetDetails = `Orden — Mesa ${tableNames}`;
+      totalVoided = 1;
+    } else {
+      targetDetails = record.note || record.reason || "Detalles no disponibles";
+      totalVoided = record.target === "ORDER_ITEM" ? 1 : 0;
     }
 
     return {
@@ -443,6 +272,8 @@ export async function fetchClosingSummary(
       totalVoided,
       reason: record.reason,
       createdAt: record.createdAt,
+      // ✅ Include raw metadata for Excel export flexibility
+      _metadata: metadata,
     };
   });
 
