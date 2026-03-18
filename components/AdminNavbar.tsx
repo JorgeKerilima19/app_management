@@ -1,3 +1,5 @@
+// app\components\AdminNavbar.tsx
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -12,6 +14,7 @@ import {
   Settings,
   Table,
   Bar,
+  ReqSVG,
 } from "./svg";
 
 type User = {
@@ -27,6 +30,7 @@ const navItems = [
   { name: "Caja", href: "/cashier", logo: <Cashier /> },
   { name: "Bar", href: "/bar", logo: <Bar /> },
   { name: "Inventario", href: "/inventory", logo: <Inventory /> },
+  { name: "Requerimientos", href: "/requirements", logo: <ReqSVG /> },
   { name: "Ajustes", href: "/settings", logo: <Settings /> },
 ];
 
@@ -93,7 +97,7 @@ export default function AdminSidebar({ user }: { user: User }) {
             />
           </svg>
         </button>
-        <h1 className="text-lg font-bold">Taguchi Restaurant</h1>
+        <h1 className="text-lg font-bold">Tacuchi Restaurant</h1>
         <div className="w-10" />
       </header>
 

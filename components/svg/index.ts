@@ -4,4 +4,5 @@ export * from "./Cashier";
 export * from "./Inventory";
 export * from "./Kitchen";
 export * from "./Settings";
-export * from "./Bar"
+export * from "./Bar";
+export * from "./Requirement";

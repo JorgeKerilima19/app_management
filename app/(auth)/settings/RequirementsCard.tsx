@@ -1,8 +1,13 @@
-/// app/(auth)/settings/RequirementsCard.tsx
+// app/(auth)/settings/RequirementsCard.tsx
 "use client";
 
 import { useState } from "react";
-import { deliverRequirementItem, cancelRequirement } from "../kitchen/actions";
+import {
+  cancelRequirement,
+  deliverRequirementItem,
+  approveRequirement,
+  removeRequirementItem,
+} from "../requirements/actions";
 
 type Requirement = {
   id: string;
@@ -34,27 +39,39 @@ type Props = {
 export default function RequirementsCard({ requirements, userRole }: Props) {
   const [deliveringId, setDeliveringId] = useState<string | null>(null);
   const [deliverQuantity, setDeliverQuantity] = useState("");
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [removingItemId, setRemovingItemId] = useState<string | null>(null);
+
+  const formatDateLima = (date: Date) => {
+    const limaStr = new Date(date).toLocaleString("en-US", {
+      timeZone: "America/Lima",
+    });
+    const limaDate = new Date(limaStr);
+    return limaDate.toLocaleDateString("es-PE", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
 
   const handleDeliver = async (
     requirementItemId: string,
     maxQuantity: number,
   ) => {
     if (!deliverQuantity) return;
-
     const quantity = parseFloat(deliverQuantity);
     if (isNaN(quantity) || quantity <= 0 || quantity > maxQuantity) {
       alert("Cantidad inválida");
       return;
     }
-
     const formData = new FormData();
     formData.append("requirementItemId", requirementItemId);
     formData.append("quantity", quantity.toString());
-
     try {
       setDeliveringId(requirementItemId);
       await deliverRequirementItem(formData);
-      alert("Entregado exitosamente. Stock transferido a inventario.");
+      alert("✅ Entregado exitosamente");
       window.location.reload();
     } catch (e) {
       alert("Error: " + (e as Error).message);
@@ -64,203 +81,296 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
     }
   };
 
-  const handleCancel = async (requirementId: string) => {
-    if (!confirm("¿Cancelar este requerimiento?")) return;
-
+  const handleApprove = async (requirementId: string) => {
+    if (
+      !confirm("¿Aprobar este requerimiento? Los items ya no podrán editarse.")
+    )
+      return;
     const formData = new FormData();
     formData.append("requirementId", requirementId);
+    try {
+      setApprovingId(requirementId);
+      await approveRequirement(formData);
+      alert("✅ Requerimiento aprobado");
+      window.location.reload();
+    } catch (e) {
+      alert("Error: " + (e as Error).message);
+    } finally {
+      setApprovingId(null);
+    }
+  };
 
+  const handleCancel = async (requirementId: string) => {
+    if (!confirm("¿Cancelar este requerimiento?")) return;
+    const formData = new FormData();
+    formData.append("requirementId", requirementId);
     try {
       await cancelRequirement(formData);
+      alert("✅ Requerimiento cancelado");
       window.location.reload();
     } catch (e) {
       alert("Error: " + (e as Error).message);
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "PENDING":
-        return (
-          <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
-            Pendiente
-          </span>
-        );
-      case "APPROVED":
-        return (
-          <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-            Aprobado
-          </span>
-        );
-      case "PARTIALLY_DELIVERED":
-        return (
-          <span className="px-2 py-0.5 bg-orange-100 text-orange-800 rounded text-xs font-medium">
-            Parcial
-          </span>
-        );
-      case "DELIVERED":
-        return (
-          <span className="px-2 py-0.5 bg-green-100 text-green-800 rounded text-xs font-medium">
-            Entregado
-          </span>
-        );
-      case "CANCELLED":
-        return (
-          <span className="px-2 py-0.5 bg-red-100 text-red-800 rounded text-xs font-medium">
-            Cancelado
-          </span>
-        );
-      default:
-        return null;
+  // ✅ NEW: Remove individual item from requirement
+  const handleRemoveItem = async (
+    requirementItemId: string,
+    itemName: string,
+  ) => {
+    if (!confirm(`¿Eliminar "${itemName}" de este requerimiento?`)) return;
+
+    const formData = new FormData();
+    formData.append("requirementItemId", requirementItemId);
+
+    try {
+      setRemovingItemId(requirementItemId);
+      await removeRequirementItem(formData);
+      alert("✅ Item eliminado del requerimiento");
+      window.location.reload();
+    } catch (e) {
+      alert("Error: " + (e as Error).message);
+    } finally {
+      setRemovingItemId(null);
     }
   };
 
-  const formatDate = (date: Date) => {
-    const dateObj = new Date(date);
-    return dateObj.toLocaleDateString("es-PE", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+  const getStatusBadge = (status: string) => {
+    const styles: Record<string, string> = {
+      PENDING: "bg-yellow-100 text-yellow-800",
+      APPROVED: "bg-blue-100 text-blue-800",
+      PARTIALLY_DELIVERED: "bg-orange-100 text-orange-800",
+      DELIVERED: "bg-green-100 text-green-800",
+      CANCELLED: "bg-gray-100 text-gray-800 line-through",
+    };
+    const labels: Record<string, string> = {
+      PENDING: "Pendiente",
+      APPROVED: "Aprobado",
+      PARTIALLY_DELIVERED: "Entrega Parcial",
+      DELIVERED: "Entregado",
+      CANCELLED: "Cancelado",
+    };
+    return (
+      <span
+        className={`px-2 py-0.5 rounded text-xs font-medium ${styles[status] || ""}`}
+      >
+        {labels[status] || status}
+      </span>
+    );
   };
 
-  if (requirements.length === 0) {
-    return null;
-  }
+  if (requirements.length === 0) return null;
+
+  const canManage = ["OWNER", "ADMIN"].includes(userRole);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold text-gray-900">
-          Necesario para Mañana
+          Requerimientos de Cocina
         </h2>
+        {canManage && (
+          <span className="text-xs text-gray-500">Panel de Administración</span>
+        )}
       </div>
 
       <div className="space-y-4">
-        {requirements.map((req) => (
-          <div key={req.id} className="border border-gray-200 rounded-lg p-4">
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-medium text-gray-900">
-                    {formatDate(req.date)}
-                  </span>
-                  {getStatusBadge(req.status)}
-                </div>
-                <p className="text-sm text-gray-500">
-                  Solicitado por: {req.createdBy.name} ({req.createdBy.role})
-                </p>
-                {req.approvedBy && (
+        {requirements.map((req) => {
+          const isPending = req.status === "PENDING";
+          const hasItems = req.items.length > 0;
+          const allDelivered = req.items.every(
+            (item) => item.quantityDelivered >= item.quantityRequested,
+          );
+
+          return (
+            <div key={req.id} className="border border-gray-200 rounded-lg p-4">
+              {/* Header */}
+              <div className="flex flex-wrap justify-between items-start gap-3 mb-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-medium text-gray-900">
+                      {formatDateLima(req.date)}
+                    </span>
+                    {getStatusBadge(req.status)}
+                  </div>
                   <p className="text-sm text-gray-500">
-                    Aprobado por: {req.approvedBy.name}
+                    Solicitado por: {req.createdBy.name} ({req.createdBy.role})
                   </p>
-                )}
-                {req.notes && (
-                  <p className="text-sm text-gray-600 mt-1">
-                    Nota: {req.notes}
-                  </p>
+                  {req.approvedBy && (
+                    <p className="text-sm text-gray-500">
+                      Aprobado por: {req.approvedBy.name}
+                    </p>
+                  )}
+                  {req.notes && (
+                    <p className="text-sm text-gray-600 mt-1">📝 {req.notes}</p>
+                  )}
+                </div>
+
+                {/* Requirement-level Actions */}
+                {canManage && (
+                  <div className="flex flex-wrap gap-2">
+                    {isPending && hasItems && (
+                      <button
+                        onClick={() => handleApprove(req.id)}
+                        disabled={approvingId === req.id}
+                        className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {approvingId === req.id ? "Aprobando..." : "✓ Aprobar"}
+                      </button>
+                    )}
+                    {isPending && (
+                      <button
+                        onClick={() => handleCancel(req.id)}
+                        className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                      >
+                        X Cancelar
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
-              {req.status === "PENDING" &&
-                ["OWNER", "ADMIN"].includes(userRole) && (
-                  <button
-                    onClick={() => handleCancel(req.id)}
-                    className="text-sm text-red-600 hover:text-red-800"
-                  >
-                    Cancelar
-                  </button>
-                )}
-            </div>
 
-            <div className="space-y-2">
-              {req.items.map((item) => {
-                const remaining =
-                  item.quantityRequested - item.quantityDelivered;
-                const isDelivering = deliveringId === item.id;
+              {/* Items List */}
+              <div className="space-y-2">
+                {req.items.map((item) => {
+                  const remaining =
+                    item.quantityRequested - item.quantityDelivered;
+                  const isDelivering = deliveringId === item.id;
+                  const isRemoving = removingItemId === item.id;
+                  const isFullyDelivered = remaining <= 0;
 
-                return (
-                  <div
-                    key={item.id}
-                    className="flex justify-between items-center p-2 bg-gray-50 rounded"
-                  >
-                    <div>
-                      <span className="text-sm font-medium text-gray-900">
-                        {item.inventoryItem.name}
-                      </span>
-                      <span className="text-sm text-gray-600 ml-2">
-                        {item.quantityDelivered} / {item.quantityRequested}{" "}
-                        {item.inventoryItem.unit}
-                      </span>
-                      {item.notes && (
-                        <span className="text-xs text-gray-500 block">
-                          "{item.notes}"
+                  return (
+                    <div
+                      key={item.id}
+                      className={`flex flex-wrap justify-between items-center p-2 rounded ${
+                        isFullyDelivered ? "bg-green-50" : "bg-gray-50"
+                      }`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-medium text-gray-900">
+                          {item.inventoryItem.name}
                         </span>
-                      )}
-                      {remaining > 0 && (
-                        <span className="text-xs text-orange-600">
-                          Faltan: {remaining} {item.inventoryItem.unit}
+                        <span className="text-sm text-gray-600 ml-2">
+                          {item.quantityDelivered} / {item.quantityRequested}{" "}
+                          {item.inventoryItem.unit}
                         </span>
-                      )}
-                    </div>
+                        {item.notes && (
+                          <span className="text-xs text-gray-500 block mt-1">
+                            "{item.notes}"
+                          </span>
+                        )}
+                        {!isFullyDelivered && req.status !== "PENDING" && (
+                          <span className="text-xs text-orange-600 block mt-1">
+                            Faltan: {remaining} {item.inventoryItem.unit}
+                          </span>
+                        )}
+                      </div>
 
-                    <div className="flex items-center gap-2">
-                      {remaining > 0 &&
-                      ["OWNER", "ADMIN"].includes(userRole) ? (
-                        isDelivering ? (
-                          <>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              max={remaining}
-                              value={deliverQuantity}
-                              onChange={(e) =>
-                                setDeliverQuantity(e.target.value)
-                              }
-                              className="w-20 px-2 py-1 text-sm border border-gray-300 rounded text-black bg-white"
-                              placeholder="Cant."
-                            />
+                      {/* Item Actions */}
+                      <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                        {/* Deliver Button - Only for OWNER/ADMIN, only when not pending */}
+                        {canManage && !isPending && !isFullyDelivered ? (
+                          isDelivering ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max={remaining}
+                                value={deliverQuantity}
+                                onChange={(e) =>
+                                  setDeliverQuantity(e.target.value)
+                                }
+                                className="w-20 px-2 py-1 text-sm border border-gray-300 rounded text-black bg-white"
+                                placeholder="Cant."
+                                autoFocus
+                              />
+                              <button
+                                onClick={() =>
+                                  handleDeliver(item.id, remaining)
+                                }
+                                disabled={!deliverQuantity || isRemoving}
+                                className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
+                              >
+                                Confirmar
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setDeliveringId(null);
+                                  setDeliverQuantity("");
+                                }}
+                                className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm hover:bg-gray-400"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ) : (
                             <button
-                              onClick={() => handleDeliver(item.id, remaining)}
-                              disabled={!deliverQuantity}
-                              className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
+                              onClick={() => setDeliveringId(item.id)}
+                              disabled={isRemoving}
+                              className="px-3 py-1 bg-violet-600 text-white rounded text-sm hover:bg-violet-700 disabled:opacity-50"
                             >
-                              Confirmar
+                              Entregar ({remaining} {item.inventoryItem.unit})
                             </button>
-                            <button
-                              onClick={() => {
-                                setDeliveringId(null);
-                                setDeliverQuantity("");
-                              }}
-                              className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm hover:bg-gray-400"
-                            >
-                              Cancelar
-                            </button>
-                          </>
+                          )
+                        ) : isFullyDelivered ? (
+                          <span className="text-xs text-green-600 font-medium">
+                            ✓ Completado
+                          </span>
+                        ) : req.status === "PENDING" ? (
+                          <span className="text-xs text-gray-400">
+                            Pendiente de aprobación
+                          </span>
                         ) : (
+                          <span className="text-xs text-gray-400">
+                            Sin acciones
+                          </span>
+                        )}
+
+                        {/* ✅ DELETE ITEM BUTTON - Only for OWNER/ADMIN */}
+                        {canManage && !isFullyDelivered && (
                           <button
-                            onClick={() => setDeliveringId(item.id)}
-                            className="px-3 py-1 bg-violet-600 text-white rounded text-sm hover:bg-violet-700"
-                            title="Transferir desde Almacén a Inventario"
+                            onClick={() =>
+                              handleRemoveItem(item.id, item.inventoryItem.name)
+                            }
+                            disabled={isRemoving || isDelivering}
+                            className="px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded disabled:opacity-50"
+                            title="Eliminar este item del requerimiento"
                           >
-                            Entregar
+                            {isRemoving ? "…" : "X"}
                           </button>
-                        )
-                      ) : remaining === 0 ? (
-                        <span className="text-xs text-green-600 font-medium">
-                          Completado
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-400">Pendiente</span>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+
+              {/* Footer */}
+              <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center text-xs text-gray-500">
+                <span>
+                  {req.items.length} item{req.items.length !== 1 ? "s" : ""} •{" "}
+                  {
+                    req.items.filter(
+                      (i) => i.quantityDelivered >= i.quantityRequested,
+                    ).length
+                  }{" "}
+                  completado
+                  {req.items.filter(
+                    (i) => i.quantityDelivered >= i.quantityRequested,
+                  ).length !== 1
+                    ? "s"
+                    : ""}
+                </span>
+                {allDelivered && req.status !== "PENDING" && (
+                  <span className="text-green-600 font-medium">
+                    ✓ Todo entregado
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

@@ -9,7 +9,6 @@ import {
   cancelOrderItem,
 } from "./actions";
 import type { KitchenOrder, PreparedOrder } from "./actions";
-import RequirementsModal from "./RequirementsModal";
 
 type CancelledItem = {
   id: string;
@@ -25,7 +24,6 @@ export default function KitchenView({
 }) {
   const [activeOrders, setActiveOrders] = useState(initialActive);
   const [preparedOrders, setPreparedOrders] = useState(initialPrepared);
-  const [isRequirementsModalOpen, setIsRequirementsModalOpen] = useState(false);
 
   const [cancelledItems, setCancelledItems] = useState<CancelledItem[]>([]);
 
@@ -205,14 +203,6 @@ export default function KitchenView({
   return (
     <div className="space-y-8">
       {/* Requirements Button */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => setIsRequirementsModalOpen(true)}
-          className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 text-sm font-medium"
-        >
-          + Solicitar para Mañana
-        </button>
-      </div>
 
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-4">
@@ -412,11 +402,6 @@ export default function KitchenView({
         </div>
       )}
 
-      {/* Requirements Modal */}
-      <RequirementsModal
-        isOpen={isRequirementsModalOpen}
-        onClose={() => setIsRequirementsModalOpen(false)}
-      />
     </div>
   );
 }

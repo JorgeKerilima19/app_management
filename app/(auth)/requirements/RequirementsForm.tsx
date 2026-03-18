@@ -1,83 +1,48 @@
-//app/kitchen/RequirementsModal.tsx
-
+// app/(auth)/requirements/components/RequirementsForm.tsx
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import {
-  createDailyRequirement,
-  addRequirementItem,
-  getInventoryItemsForRequirements,
-} from "./actions";
-
-type InventoryItem = {
-  id: string;
-  name: string;
-  currentQuantity: number;
-  unit: string;
-  category: string | null;
-};
+import { useState } from "react";
+import { createDailyRequirement, addRequirementItem } from "./actions";
+import type { InventoryItem } from "./actions";
 
 type Props = {
-  isOpen: boolean;
-  onClose: () => void;
+  inventoryItems: InventoryItem[];
 };
 
-export default function RequirementsModal({ isOpen, onClose }: Props) {
-  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedDate, setSelectedDate] = useState("");
+type PendingItem = {
+  inventoryItemId: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  notes: string;
+};
+
+export default function RequirementsForm({ inventoryItems }: Props) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [loading, setLoading] = useState(false);
+
+  // Step 1: Requirement basics
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split("T")[0];
+  });
   const [notes, setNotes] = useState("");
+  const [requirementId, setRequirementId] = useState<string | null>(null);
+
+  // Step 2: Items
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedItemId, setSelectedItemId] = useState("");
   const [quantity, setQuantity] = useState("");
   const [itemNotes, setItemNotes] = useState("");
-  const [requirementId, setRequirementId] = useState<string | null>(null);
-  const [items, setItems] = useState<
-    Array<{
-      inventoryItemId: string;
-      name: string;
-      quantity: number;
-      unit: string;
-      notes: string;
-    }>
-  >([]);
-  const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<1 | 2>(1);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
 
-  useEffect(() => {
-    if (isOpen) {
-      // ✅ Fix: Get tomorrow's date in local timezone
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      // Format as YYYY-MM-DD in local timezone
-      const year = tomorrow.getFullYear();
-      const month = String(tomorrow.getMonth() + 1).padStart(2, "0");
-      const day = String(tomorrow.getDate()).padStart(2, "0");
-      setSelectedDate(`${year}-${month}-${day}`);
-
-      async function loadInventory() {
-        try {
-          setFetchError(null);
-          const data = await getInventoryItemsForRequirements();
-          setInventoryItems(data);
-        } catch (e) {
-          console.error("Failed to load inventory items", e);
-          setFetchError("No se pudieron cargar los items de inventario");
-        }
-      }
-      loadInventory();
-    }
-  }, [isOpen]);
-
-  const filteredItems = useMemo(() => {
-    if (!searchQuery.trim()) return inventoryItems;
-    const query = searchQuery.toLowerCase();
-    return inventoryItems.filter(
-      (item) =>
-        item.name.toLowerCase().includes(query) ||
-        (item.category && item.category.toLowerCase().includes(query)),
-    );
-  }, [inventoryItems, searchQuery]);
+  const filteredItems = inventoryItems.filter(
+    (item) =>
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.category?.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
 
   const handleCreateRequirement = async () => {
     if (!selectedDate) {
@@ -87,7 +52,7 @@ export default function RequirementsModal({ isOpen, onClose }: Props) {
 
     const formData = new FormData();
     formData.append("date", selectedDate);
-    formData.append("notes", notes);
+    formData.append("notes", notes.trim());
 
     try {
       setLoading(true);
@@ -114,14 +79,14 @@ export default function RequirementsModal({ isOpen, onClose }: Props) {
     const item = inventoryItems.find((i) => i.id === selectedItemId);
     if (!item) return;
 
-    setItems([
-      ...items,
+    setPendingItems([
+      ...pendingItems,
       {
         inventoryItemId: selectedItemId,
         name: item.name,
         quantity: parseFloat(quantity),
         unit: item.unit,
-        notes: itemNotes,
+        notes: itemNotes.trim(),
       },
     ]);
     setSelectedItemId("");
@@ -130,15 +95,17 @@ export default function RequirementsModal({ isOpen, onClose }: Props) {
   };
 
   const handleRemoveItem = (inventoryItemId: string) => {
-    setItems(items.filter((i) => i.inventoryItemId !== inventoryItemId));
+    setPendingItems(
+      pendingItems.filter((i) => i.inventoryItemId !== inventoryItemId),
+    );
   };
 
   const handleSubmitItems = async () => {
-    if (!requirementId || items.length === 0) return;
+    if (!requirementId || pendingItems.length === 0) return;
 
     try {
       setLoading(true);
-      for (const item of items) {
+      for (const item of pendingItems) {
         const formData = new FormData();
         formData.append("requirementId", requirementId);
         formData.append("inventoryItemId", item.inventoryItemId);
@@ -146,8 +113,8 @@ export default function RequirementsModal({ isOpen, onClose }: Props) {
         if (item.notes) formData.append("notes", item.notes);
         await addRequirementItem(formData);
       }
-      alert("Requerimiento creado exitosamente");
-      onClose();
+      alert("✅ Requerimiento actualizado exitosamente");
+      handleClose();
       window.location.reload();
     } catch (e) {
       alert("Error: " + (e as Error).message);
@@ -157,23 +124,32 @@ export default function RequirementsModal({ isOpen, onClose }: Props) {
   };
 
   const handleClose = () => {
-    onClose();
+    setIsOpen(false);
+    setStep(1);
+    setNotes("");
+    setPendingItems([]);
     setSearchQuery("");
     setSelectedItemId("");
     setQuantity("");
     setItemNotes("");
-    setItems([]);
-    setRequirementId(null);
-    setStep(1);
-    setNotes("");
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return (
+      <button
+        onClick={() => setIsOpen(true)}
+        className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 text-sm font-medium transition"
+      >
+        + Nuevo Requerimiento
+      </button>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-4 border-b border-gray-200 sticky top-0 bg-white flex justify-between items-center">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
           <h3 className="text-lg font-semibold text-gray-900">
             {step === 1 ? "Nuevo Requerimiento" : "Agregar Ingredientes"}
           </h3>
@@ -191,7 +167,7 @@ export default function RequirementsModal({ isOpen, onClose }: Props) {
             <>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Fecha *
+                  Fecha requerida *
                 </label>
                 <input
                   type="date"
@@ -203,13 +179,13 @@ export default function RequirementsModal({ isOpen, onClose }: Props) {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notas (opcional)
+                  Notas adicionales
                 </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={2}
-                  placeholder="ejm. Evento especial, fin de semana..."
+                  placeholder="Ej: Evento especial, fin de semana largo..."
                   className="w-full px-3 py-2 border border-gray-300 rounded text-gray-900 bg-white"
                 />
               </div>
@@ -218,7 +194,7 @@ export default function RequirementsModal({ isOpen, onClose }: Props) {
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300"
+                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300 text-sm"
                 >
                   Cancelar
                 </button>
@@ -226,52 +202,56 @@ export default function RequirementsModal({ isOpen, onClose }: Props) {
                   type="button"
                   onClick={handleCreateRequirement}
                   disabled={loading || !selectedDate}
-                  className="px-4 py-2 bg-violet-600 text-white rounded hover:bg-violet-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-violet-600 text-white rounded hover:bg-violet-700 disabled:opacity-50 text-sm"
                 >
-                  {loading ? "Creando..." : "Continuar"}
+                  {loading ? "Creando..." : "Continuar →"}
                 </button>
               </div>
             </>
           ) : (
             <>
-              <p className="text-sm text-gray-600">
-                Fecha:{" "}
-                {new Date(selectedDate + "T00:00:00").toLocaleDateString(
+              {/* Date summary */}
+              <p className="text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded">
+                📅 Fecha:{" "}
+                {new Date(selectedDate + "T12:00:00").toLocaleDateString(
                   "es-PE",
+                  {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  },
                 )}
+                {notes && <span className="text-gray-500"> • {notes}</span>}
               </p>
 
-              {/* Search Bar */}
+              {/* Search */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Buscar ingrediente
                 </label>
                 <input
                   type="text"
-                  placeholder="Buscar por nombre o categoría..."
+                  placeholder="Nombre o categoría..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded text-gray-900 bg-white"
+                  autoFocus
                 />
-                {searchQuery && filteredItems.length === 0 && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    No se encontraron resultados
-                  </p>
-                )}
               </div>
 
-              {/* Item Selection */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+              {/* Add item form */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                 <select
                   value={selectedItemId}
                   onChange={(e) => setSelectedItemId(e.target.value)}
-                  className="px-2 py-1 text-sm border border-gray-300 rounded text-black bg-white md:col-span-2"
+                  className="px-3 py-2 border border-gray-300 rounded text-sm text-gray-900 bg-white sm:col-span-2"
                 >
-                  <option value="">-- Seleccionar ingrediente --</option>
+                  <option value="">-- Seleccionar --</option>
                   {filteredItems.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.name} ({item.currentQuantity} {item.unit})
-                      {item.category && ` - ${item.category}`}
+                      {item.category && ` • ${item.category}`}
                     </option>
                   ))}
                 </select>
@@ -279,47 +259,43 @@ export default function RequirementsModal({ isOpen, onClose }: Props) {
                 <input
                   type="number"
                   step="0.01"
-                  min="0"
+                  min="0.01"
                   placeholder="Cantidad"
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
-                  className="px-2 py-1 text-sm border border-gray-300 rounded text-black bg-white"
+                  className="px-3 py-2 border border-gray-300 rounded text-sm text-gray-900 bg-white"
                 />
 
                 <button
                   type="button"
                   onClick={handleAddItem}
                   disabled={!selectedItemId || !quantity}
-                  className="px-3 py-1 bg-violet-500 text-white rounded text-sm hover:bg-violet-600 disabled:opacity-50"
+                  className="px-3 py-2 bg-violet-500 text-white rounded text-sm hover:bg-violet-600 disabled:opacity-50"
                 >
                   + Añadir
                 </button>
               </div>
 
-              {/* Item Notes */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nota para este ingrediente (opcional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="ejm. Solo maduros, sin semillas..."
-                  value={itemNotes}
-                  onChange={(e) => setItemNotes(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded text-gray-900 bg-white"
-                />
-              </div>
+              {/* Item notes */}
+              <input
+                type="text"
+                placeholder="Nota para este ingrediente (opcional)"
+                value={itemNotes}
+                onChange={(e) => setItemNotes(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm text-gray-900 bg-white"
+              />
 
-              {/* Selected Items List */}
-              {items.length > 0 ? (
-                <ul className="space-y-2">
-                  {items.map((item) => (
-                    <li
+              {/* Pending items list */}
+              {pendingItems.length > 0 ? (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {pendingItems.map((item) => (
+                    <div
                       key={item.inventoryItemId}
-                      className="flex justify-between items-center p-2 bg-gray-50 rounded"
+                      className="flex justify-between items-center p-2 bg-gray-50 rounded border border-gray-200"
                     >
                       <span className="text-sm text-gray-900">
-                        {item.name} x {item.quantity} {item.unit}
+                        <strong>{item.name}</strong> × {item.quantity}{" "}
+                        {item.unit}
                         {item.notes && (
                           <span className="text-gray-500"> — {item.notes}</span>
                         )}
@@ -331,36 +307,33 @@ export default function RequirementsModal({ isOpen, onClose }: Props) {
                       >
                         Eliminar
                       </button>
-                    </li>
+                    </div>
                   ))}
-                </ul>
+                </div>
               ) : (
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 text-center py-4">
                   {searchQuery && filteredItems.length === 0
-                    ? "No se encontraron resultados"
-                    : "Sin ingredientes agregados."}
+                    ? "No se encontraron ingredientes"
+                    : "Agrega ingredientes para este requerimiento"}
                 </p>
               )}
 
-              {fetchError && (
-                <p className="text-sm text-red-600">{fetchError}</p>
-              )}
-
-              <div className="flex justify-end gap-3 pt-2">
+              {/* Actions */}
+              <div className="flex justify-between pt-2 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300"
+                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300 text-sm"
                 >
-                  Atrás
+                  ← Atrás
                 </button>
                 <button
                   type="button"
                   onClick={handleSubmitItems}
-                  disabled={loading || items.length === 0}
-                  className="px-4 py-2 bg-violet-600 text-white rounded hover:bg-violet-700 disabled:opacity-50"
+                  disabled={loading || pendingItems.length === 0}
+                  className="px-4 py-2 bg-violet-600 text-white rounded hover:bg-violet-700 disabled:opacity-50 text-sm"
                 >
-                  {loading ? "Guardando..." : "Crear Requerimiento"}
+                  {loading ? "Guardando..." : "✅ Guardar Requerimiento"}
                 </button>
               </div>
             </>
