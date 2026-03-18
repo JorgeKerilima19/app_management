@@ -64,20 +64,50 @@ export default async function TablePage({
   if (table.status === "OCCUPIED") {
     const menuItems = await prisma.menuItem.findMany({
       where: { isAvailable: true },
-      include: { category: true },
+      include: {
+        category: true,
+        recipeItems: {
+          include: {
+            inventoryItem: {
+              select: {
+                id: true,
+                name: true,
+                currentQuantity: true,
+                unit: true,
+              },
+            },
+          },
+        },
+      },
       orderBy: [{ category: { name: "asc" } }, { name: "asc" }],
     });
-    serializedMenuItems = menuItems.map((item) => ({
-      id: item.id,
-      name: item.name,
-      description: item.description,
-      price: toNumber(item.price),
-      isAvailable: item.isAvailable,
-      prepTimeMin: item.prepTimeMin,
-      categoryId: item.categoryId,
-      category: { name: item.category.name },
-      station: item.station,
-    }));
+
+    serializedMenuItems = menuItems.map((item) => {
+      const isSimpleItem =
+        item.recipeItems?.length === 1 &&
+        item.recipeItems[0].quantityRequired === 1 &&
+        !item.recipeItems[0].isOptional;
+
+      // Get inventory stock for simple items only
+      const inventoryStock = isSimpleItem
+        ? (item.recipeItems[0].inventoryItem?.currentQuantity ?? null)
+        : null;
+
+      return {
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        price: toNumber(item.price),
+        isAvailable: item.isAvailable,
+        prepTimeMin: item.prepTimeMin,
+        categoryId: item.categoryId,
+        category: { name: item.category.name },
+        station: item.station,
+        // ✅ Add stock info for UI display (only for simple items)
+        inventoryStock: isSimpleItem ? toNumber(inventoryStock) : null,
+        isSimpleItem, // Flag for conditional rendering in UI
+      };
+    });
   }
 
   let serializedCheck = null;

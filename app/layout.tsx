@@ -23,7 +23,7 @@ export default async function RootLayout({
         {showSidebar ? (
           <div className="flex min-h-screen">
             <AdminSidebar user={user} />
-            <main className="flex-1 p-4 md:p-6 bg-white pt-16 md:pt-6">
+            <main className="flex-1 p-4 md:p-6 bg-white pt-16 md:pt-6 mt-8">
               {children}
             </main>
           </div>

@@ -6,8 +6,6 @@ import { getCurrentUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
 export async function createStorageItem(formData: FormData) {
-  "use server";
-
   const user = await getCurrentUser();
   if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
     throw new Error("No autorizado");
@@ -44,7 +42,6 @@ export async function createStorageItem(formData: FormData) {
       },
     });
 
-    // ✅ Auto-link: Check if inventory item exists with same name, create if not
     let inventoryItem = await tx.inventoryItem.findFirst({
       where: { name: { equals: name, mode: "insensitive" } },
     });
@@ -71,6 +68,17 @@ export async function createStorageItem(formData: FormData) {
       },
     });
   });
+
+  const inventoryItem = await prisma.inventoryItem.findFirst({
+    where: { name: { equals: name, mode: "insensitive" } },
+  });
+
+  if (inventoryItem && category) {
+    await prisma.inventoryItem.update({
+      where: { id: inventoryItem.id },
+      data: { category },
+    });
+  }
 
   revalidatePath("/storage");
   revalidatePath("/inventory");
@@ -178,10 +186,7 @@ export async function addStorageQuantity(formData: FormData) {
   revalidatePath("/inventory");
 }
 
-// ✅ NEW: Transfer from Storage to Inventory
 export async function transferToInventory(formData: FormData) {
-  "use server";
-
   const user = await getCurrentUser();
   if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
     throw new Error("No autorizado");
@@ -252,12 +257,87 @@ export async function transferToInventory(formData: FormData) {
   return { success: true };
 }
 
-// ✅ NEW: Get linked inventory item by name
 export async function getLinkedInventoryItem(storageItemName: string) {
-  "use server";
-
   return await prisma.inventoryItem.findFirst({
     where: { name: { equals: storageItemName, mode: "insensitive" } },
     select: { id: true, name: true, currentQuantity: true, unit: true },
   });
+}
+
+export async function syncCategoriesFromStorage(formData: FormData) {
+  try {
+    const user = await getCurrentUser();
+    console.log("👤 User:", user?.email, user?.role);
+
+    if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
+      console.error("❌ Unauthorized");
+      throw new Error("No autorizado");
+    }
+
+    const storageItems = await prisma.storageItem.findMany({
+      where: {
+        category: {
+          not: null,
+        },
+      },
+      select: {
+        name: true,
+        category: true,
+      },
+    });
+
+    storageItems.forEach((item) =>
+      console.log(`  - ${item.name}: ${item.category}`),
+    );
+
+    // Fetch inventory items WITHOUT categories
+    const inventoryItems = await prisma.inventoryItem.findMany({
+      where: {
+        category: null,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    console.log(
+      `📋 Found ${inventoryItems.length} inventory items without categories:`,
+    );
+    inventoryItems.forEach((item) => console.log(`  - ${item.name}`));
+
+    let updatedCount = 0;
+
+    await prisma.$transaction(async (tx) => {
+      for (const storageItem of storageItems) {
+        const inventoryItem = await tx.inventoryItem.findFirst({
+          where: {
+            name: {
+              equals: storageItem.name,
+              mode: "insensitive",
+            },
+            category: null, // Only update items without category
+          },
+        });
+
+        if (inventoryItem) {
+          await tx.inventoryItem.update({
+            where: { id: inventoryItem.id },
+            data: {
+              category: storageItem.category,
+            },
+          });
+          updatedCount++;
+        } else {
+          console.log(`No match for "${storageItem.name}"`);
+        }
+      }
+    });
+
+    revalidatePath("/storage");
+    revalidatePath("/inventory");
+  } catch (error) {
+    console.error("❌ SYNC FAILED:", error);
+    throw error;
+  }
 }
