@@ -36,7 +36,7 @@ export default async function TablesPage() {
           className={`${sizeClasses} rounded-lg border-2 flex items-center justify-center font-bold cursor-pointer transition transform hover:scale-105 ${statusClasses}`}
           title={`${table.name || `Mesa ${table.number}`} - ${table.capacity} personas`}
         >
-          {table.number}
+          {table.name}
         </div>
       </Link>
     );
@@ -125,6 +125,7 @@ export default async function TablesPage() {
         <div className="flex justify-center gap-8">
           {renderTable(16)}
           {renderTable(17)}
+          {renderTable(18)}
         </div>
       </div>
     </div>

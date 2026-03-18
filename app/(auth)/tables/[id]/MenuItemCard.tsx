@@ -11,8 +11,8 @@ export function MenuItemCard({
     isAvailable: boolean;
     station: "KITCHEN" | "BAR";
     category: { name: string };
-    inventoryStock: number | null;
-    isSimpleItem: boolean;
+    inventoryStock?: number | null;
+    isSimpleItem?: boolean;
   };
   onAddToCart: (item: any) => void;
 }) {
@@ -20,26 +20,30 @@ export function MenuItemCard({
     menuItem.station === "KITCHEN" ? "Comidas" : "Bebidas y/o Postres";
 
   const getStockStatus = () => {
-    if (!menuItem.isSimpleItem || menuItem.inventoryStock === null) {
-      return null; // Don't show stock for complex items
+    const isSimple = menuItem.isSimpleItem ?? true;
+    const stock = menuItem.inventoryStock ?? null;
+
+    if (!isSimple || stock === null) {
+      return null;
     }
-    if (menuItem.inventoryStock <= 0) {
+    if (stock <= 0) {
       return { text: "Agotado", color: "text-red-600 bg-red-50" };
     }
-    if (menuItem.inventoryStock <= 5) {
+    if (stock <= 5) {
       return {
-        text: `Solo ${menuItem.inventoryStock}`,
+        text: `Solo ${stock}`,
         color: "text-amber-600 bg-amber-50",
       };
     }
     return {
-      text: `${menuItem.inventoryStock} disponibles`,
+      text: `${stock} disponibles`,
       color: "text-green-600 bg-green-50",
     };
   };
 
   const stockStatus = getStockStatus();
-  const isOutOfStock = menuItem.isSimpleItem && menuItem.inventoryStock === 0;
+  const isOutOfStock =
+    (menuItem.isSimpleItem ?? true) && (menuItem.inventoryStock ?? 0) === 0;
 
   if (!menuItem.isAvailable) {
     return (
@@ -59,6 +63,7 @@ export function MenuItemCard({
           : "border-violet-200 hover:bg-violet-50 hover:border-violet-400 cursor-pointer"
       }`}
     >
+      {/* ... rest of your JSX remains the same ... */}
       <div className="flex justify-between items-start">
         <div className="min-w-0">
           <p className="font-medium text-gray-900 group-hover:text-violet-700 truncate">

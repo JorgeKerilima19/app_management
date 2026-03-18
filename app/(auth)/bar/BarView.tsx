@@ -1,3 +1,4 @@
+/// app/bar/BarView.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -5,8 +6,14 @@ import {
   markBarOrderAsReady,
   fetchActiveBarOrders,
   fetchPreparedBarToday,
+  cancelBarOrderItem,
 } from "./actions";
 import type { BarOrder, PreparedBarOrder } from "./actions";
+
+type CancelledItem = {
+  id: string;
+  cancelledAt: number;
+};
 
 const groupItemsByCategory = (
   items: {
@@ -15,6 +22,7 @@ const groupItemsByCategory = (
     quantity: number;
     notes: string | null;
     categoryName: string;
+    isCancelled?: boolean;
   }[],
 ) => {
   const grouped: Record<string, typeof items> = {};
@@ -34,6 +42,9 @@ export default function BarView({
 }) {
   const [activeOrders, setActiveOrders] = useState(initialActive);
   const [preparedOrders, setPreparedOrders] = useState(initialPrepared);
+
+  const [cancelledItems, setCancelledItems] = useState<CancelledItem[]>([]);
+
   const hasPlayedNewOrderSoundRef = useRef<Set<string>>(new Set());
   const hasPlayedColorChangeSoundRef = useRef<Set<string>>(new Set());
 
@@ -117,6 +128,16 @@ export default function BarView({
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = Date.now();
+      setCancelledItems((prev) =>
+        prev.filter((item) => now - item.cancelledAt < 5000),
+      );
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const handleMarkReady = async (orderId: string) => {
     const formData = new FormData();
     formData.set("orderId", orderId);
@@ -124,13 +145,51 @@ export default function BarView({
     loadOrders();
   };
 
-  const getCardStyles = (earliestItemTime: number) => {
+  const handleCancelItem = async (orderItemId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent marking as ready when clicking cancel
+
+    if (!confirm("¿Cancelar este ítem?")) return;
+
+    const formData = new FormData();
+    formData.set("orderItemId", orderItemId);
+    formData.set("reason", "Cancelado desde bar");
+
+    try {
+      await cancelBarOrderItem(formData);
+
+      setCancelledItems((prev) => [
+        ...prev,
+        { id: orderItemId, cancelledAt: Date.now() },
+      ]);
+
+      // Reload orders to get updated status from server
+      loadOrders();
+    } catch (err) {
+      alert("Error al cancelar: " + (err as Error).message);
+    }
+  };
+
+  const getCardStyles = (
+    earliestItemTime: number,
+    hasCancelledItems: boolean,
+  ) => {
+    // If order has cancelled items, use special styling
+    if (hasCancelledItems) {
+      return {
+        border: "border-gray-400",
+        bg: "bg-gray-200",
+        text: "text-gray-600",
+        isCancelled: true,
+      };
+    }
+
     const ageMin = (Date.now() - earliestItemTime) / 60000;
     if (ageMin < 5) {
       return {
         border: "border-green-500",
         bg: "bg-green-50",
         text: "text-gray-900",
+        isCancelled: false,
       };
     }
     if (ageMin < 10) {
@@ -138,18 +197,30 @@ export default function BarView({
         border: "border-yellow-500",
         bg: "bg-yellow-50",
         text: "text-gray-900",
+        isCancelled: false,
       };
     }
     return {
       border: "border-red-500",
       bg: "bg-red-50 animate-pulse",
       text: "text-gray-900",
+      isCancelled: false,
     };
+  };
+
+  const isRecentlyCancelled = (itemId: string) => {
+    return cancelledItems.some(
+      (item) => item.id === itemId && Date.now() - item.cancelledAt < 5000,
+    );
+  };
+
+  const orderHasCancelledItems = (order: BarOrder) => {
+    return order.items.some((item) => item.isCancelled);
   };
 
   return (
     <div className="space-y-8 pb-8">
-      {/* Active Orders - TABLET OPTIMIZED */}
+      {/* Active Orders */}
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-4 text-center">
           Órdenes de Bar ({activeOrders.length})
@@ -164,22 +235,36 @@ export default function BarView({
               const earliestItemTime = Math.min(
                 ...order.items.map((item) => item.itemOrderedAt.getTime()),
               );
-              const styles = getCardStyles(earliestItemTime);
+              const hasCancelled = orderHasCancelledItems(order);
+              const styles = getCardStyles(earliestItemTime, hasCancelled);
 
               return (
                 <div
                   key={order.id}
-                  className={`border-2 rounded-2xl p-6 cursor-pointer transition-all hover:shadow-lg min-h-48 ${styles.border} ${styles.bg}`}
-                  onClick={() => handleMarkReady(order.id)}
+                  className={`border-2 rounded-2xl p-6 cursor-pointer transition-all hover:shadow-lg min-h-48 ${styles.border} ${styles.bg} ${
+                    hasCancelled ? "opacity-90" : ""
+                  }`}
+                  onClick={() => {
+                    // Only mark as ready if not cancelled
+                    if (!hasCancelled) {
+                      handleMarkReady(order.id);
+                    }
+                  }}
                 >
-                  {/* Table & Time - Larger */}
+                  {/* Table & Time */}
                   <div className="mb-5">
                     <h3
-                      className={`text-3xl font-bold ${styles.text} text-center`}
+                      className={`text-3xl font-bold ${styles.text} text-center ${
+                        hasCancelled ? "line-through" : ""
+                      }`}
                     >
                       {order.tableName}
                     </h3>
-                    <p className={`text-xl ${styles.text} text-center mt-2`}>
+                    <p
+                      className={`text-xl ${styles.text} text-center mt-2 ${
+                        hasCancelled ? "line-through" : ""
+                      }`}
+                    >
                       {new Date(earliestItemTime).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -189,7 +274,7 @@ export default function BarView({
                     </p>
                   </div>
 
-                  {/* Items - Larger text */}
+                  {/* Items */}
                   <div className="space-y-4">
                     {Object.entries(groupItemsByCategory(order.items)).map(
                       ([category, items]) => (
@@ -198,34 +283,80 @@ export default function BarView({
                           className="pt-2 border-t border-gray-200"
                         >
                           <div
-                            className={`font-bold ${styles.text} text-xl mb-2`}
+                            className={`font-bold ${styles.text} text-xl mb-2 ${
+                              hasCancelled ? "line-through opacity-70" : ""
+                            }`}
                           >
                             {category}
                           </div>
-                          {items.map((item) => (
-                            <div
-                              key={item.id}
-                              className="flex justify-between items-start"
-                            >
-                              <span
-                                className={`text-2xl font-medium ${styles.text}`}
+                          {items.map((item) => {
+                            const isCancelled =
+                              item.isCancelled || isRecentlyCancelled(item.id);
+
+                            return (
+                              <div
+                                key={item.id}
+                                className="flex justify-between items-start group"
                               >
-                                {item.name}{" "}
-                                {item.quantity > 1 && `(x${item.quantity})`}
-                              </span>
-                              {item.notes && (
-                                <span
-                                  className={`text-xl ${styles.text === "text-white" ? "text-white" : "text-gray-600"} italic`}
-                                >
-                                  "{item.notes}"
-                                </span>
-                              )}
-                            </div>
-                          ))}
+                                <div className="flex-1">
+                                  <span
+                                    className={`text-2xl font-medium ${styles.text} ${
+                                      isCancelled
+                                        ? "line-through opacity-60"
+                                        : ""
+                                    }`}
+                                  >
+                                    {item.name}{" "}
+                                    {item.quantity > 1 && `(x${item.quantity})`}
+                                  </span>
+                                  {item.notes && (
+                                    <span
+                                      className={`text-xl ${styles.text === "text-white" ? "text-white" : "text-gray-600"} italic ${
+                                        isCancelled ? "line-through" : ""
+                                      }`}
+                                    >
+                                      "{item.notes}"
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Cancel Button - Only show for non-cancelled items */}
+                                {!item.isCancelled && (
+                                  <button
+                                    onClick={(e) =>
+                                      handleCancelItem(item.id, e)
+                                    }
+                                    className="ml-2 px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 opacity-0 group-hover:opacity-100 transition"
+                                    title="Cancelar ítem"
+                                  >
+                                    ✕
+                                  </button>
+                                )}
+
+                                {/* Cancelled Badge */}
+                                {item.isCancelled && (
+                                  <span className="ml-2 px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded">
+                                    CANCELADO
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       ),
                     )}
                   </div>
+
+                  {/* Cancelled Order Banner */}
+                  {hasCancelled && (
+                    <div className="mt-3 pt-3 border-t border-gray-400">
+                      <p
+                        className={`text-center text-sm font-medium ${styles.text}`}
+                      >
+                        ⚠️ Ítems cancelados en esta orden
+                      </p>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -233,7 +364,7 @@ export default function BarView({
         )}
       </div>
 
-      {/* Prepared Today - TABLET OPTIMIZED TABLE */}
+      {/* Prepared Today */}
       {preparedOrders.length > 0 && (
         <div>
           <h2 className="text-xl font-bold text-gray-900 mb-4 text-center">

@@ -48,7 +48,7 @@ export function TableMap({
                 tables.find((t) => t.id === firstTableId)?.number
               } con la Mesa ${
                 clickedTable.number
-              }? Esta acción no se puede deshacer.`
+              }? Esta acción no se puede deshacer.`,
             )
           ) {
             const formData = new FormData();
@@ -89,13 +89,8 @@ export function TableMap({
 
   const renderTable = (num: number) => {
     const table = getTable(num);
-    if (!table) return null; // This shouldn't happen if all numbers are rendered, but handle gracefully
+    if (!table) return null;
 
-    // Use table capacity to determine size (adjust logic if needed)
-    // Assuming 8-seaters are the "larger" ones like 1-5 in your example, but your schema uses capacity 4/8
-    // Let's map capacity 8 to the larger size (w-32 h-20) and capacity 4 to smaller (w-20 h-20)
-    // If the layout numbers (1-5 being larger) are fixed, you might need a different mapping
-    // const is8Seater = num >= 1 && num <= 5; // If layout defines larger tables
     const is8Seater = table.capacity === 8; // If schema defines larger tables
     const sizeClasses = is8Seater ? "w-32 h-20" : "w-20 h-20";
 
@@ -152,7 +147,7 @@ export function TableMap({
           table.capacity
         } personas - ${table.status}`}
       >
-        {table.number}
+        {table.name}
       </div>
     );
   };
@@ -265,6 +260,7 @@ export function TableMap({
           <div className="flex justify-center gap-8">
             {renderTable(16)}
             {renderTable(17)}
+            {renderTable(18)}
           </div>
         </div>
       </div>

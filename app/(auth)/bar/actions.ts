@@ -1,3 +1,4 @@
+/// app/bar/actions.ts
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -18,6 +19,7 @@ export type BarOrder = {
     notes: string | null;
     categoryName: string;
     itemOrderedAt: Date;
+    isCancelled?: boolean;
   }[];
   orderUpdatedAt: Date;
 };
@@ -37,7 +39,7 @@ export async function fetchActiveBarOrders(): Promise<BarOrder[]> {
       items: {
         some: {
           menuItem: { station: "BAR" },
-          status: { in: ["PENDING", "PREPARING"] },
+          status: { in: ["PENDING", "PREPARING", "VOIDED"] },
         },
       },
     },
@@ -45,13 +47,14 @@ export async function fetchActiveBarOrders(): Promise<BarOrder[]> {
       items: {
         where: {
           menuItem: { station: "BAR" },
-          status: { in: ["PENDING", "PREPARING"] },
+          status: { in: ["PENDING", "PREPARING", "VOIDED"] },
         },
         select: {
           id: true,
           quantity: true,
           notes: true,
           createdAt: true,
+          status: true,
           menuItem: {
             select: {
               name: true,
@@ -104,6 +107,7 @@ export async function fetchActiveBarOrders(): Promise<BarOrder[]> {
         notes: item.notes,
         categoryName: item.menuItem.category.name,
         itemOrderedAt: item.createdAt,
+        isCancelled: item.status === "VOIDED",
       })),
       orderUpdatedAt: order.updatedAt,
     };
@@ -212,7 +216,7 @@ export async function markBarOrderAsReady(formData: FormData) {
     data: { status: "READY" },
   });
 
-  // Deduct inventory for each eligible item (same pattern as kitchen)
+  // Deduct inventory for each eligible item
   for (const item of barItems) {
     try {
       const result = await deductInventoryForOrderItem(item.id);
@@ -234,5 +238,51 @@ export async function markBarOrderAsReady(formData: FormData) {
   });
 
   revalidatePath("/bar");
+  return { success: true };
+}
+
+export async function cancelBarOrderItem(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user || !["CAJERO", "OWNER", "ADMIN"].includes(user.role)) {
+    throw new Error("No autorizado");
+  }
+
+  const orderItemId = formData.get("orderItemId")?.toString();
+  const reason = formData.get("reason")?.toString() || "Cancelado por cliente";
+
+  if (!orderItemId) return;
+
+  await prisma.$transaction(async (tx) => {
+    // 1. Mark order item as CANCELLED
+    await tx.orderItem.update({
+      where: { id: orderItemId },
+      data: { status: "VOIDED" },
+    });
+
+    await tx.voidRecord.create({
+      data: {
+        target: "ORDER_ITEM",
+        targetId: orderItemId,
+        reason: reason,
+        voidedById: user.id,
+        createdAt: new Date(),
+      },
+    });
+
+    const orderItem = await tx.orderItem.findUnique({
+      where: { id: orderItemId },
+      select: { orderId: true },
+    });
+
+    if (orderItem) {
+      await tx.order.update({
+        where: { id: orderItem.orderId },
+        data: { updatedAt: new Date() },
+      });
+    }
+  });
+
+  revalidatePath("/bar");
+  revalidatePath("/dashboard/close");
   return { success: true };
 }

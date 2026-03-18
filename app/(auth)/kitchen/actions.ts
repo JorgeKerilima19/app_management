@@ -20,6 +20,7 @@ export type KitchenOrder = {
     notes: string | null;
     categoryName: string;
     itemOrderedAt: Date;
+    isCancelled?: boolean;
   }[];
   orderUpdatedAt: Date;
 };
@@ -39,7 +40,7 @@ export async function fetchActiveKitchenOrders(): Promise<KitchenOrder[]> {
       items: {
         some: {
           menuItem: { station: "KITCHEN" },
-          status: { in: ["PENDING", "PREPARING"] },
+          status: { in: ["PENDING", "PREPARING", "VOIDED"] },
         },
       },
     },
@@ -47,13 +48,14 @@ export async function fetchActiveKitchenOrders(): Promise<KitchenOrder[]> {
       items: {
         where: {
           menuItem: { station: "KITCHEN" },
-          status: { in: ["PENDING", "PREPARING"] },
+          status: { in: ["PENDING", "PREPARING", "VOIDED"] },
         },
         select: {
           id: true,
           quantity: true,
           notes: true,
           createdAt: true,
+          status: true,
           menuItem: {
             select: {
               name: true,
@@ -99,13 +101,14 @@ export async function fetchActiveKitchenOrders(): Promise<KitchenOrder[]> {
       tableName: table.name,
       orderedAt: order.createdAt,
       waiterName: order.orderedBy.name,
-      items: order.items.map((item) => ({
+      items: order.items.map((item: any) => ({
         id: item.id,
         name: item.menuItem.name,
         quantity: item.quantity,
         notes: item.notes,
         categoryName: item.menuItem.category.name,
         itemOrderedAt: item.createdAt,
+        isCancelled: item.status === "VOIDED",
       })),
       orderUpdatedAt: order.updatedAt,
     };
@@ -202,7 +205,6 @@ export async function markOrderAsReady(formData: FormData) {
 
   try {
     const result = await deductInventoryForOrderItem(orderItemId);
-
     if (result && !result.skipped) {
       console.log(
         `Inventory deducted for ${result.menuItemName}:`,
@@ -504,4 +506,52 @@ export async function cancelRequirement(formData: FormData) {
   });
 
   revalidatePath("/settings");
+}
+export async function cancelOrderItem(formData: FormData) {
+
+  const user = await getCurrentUser();
+  if (!user || !["CAJERO", "OWNER", "ADMIN"].includes(user.role)) {
+    throw new Error("No autorizado");
+  }
+
+  const orderItemId = formData.get("orderItemId")?.toString();
+  const reason = formData.get("reason")?.toString() || "Cancelado por cliente";
+
+  if (!orderItemId) return;
+
+  await prisma.$transaction(async (tx) => {
+    // 1. Mark order item as CANCELLED
+    await tx.orderItem.update({
+      where: { id: orderItemId },
+      data: { status: "VOIDED" },
+    });
+
+    // 2. Create void record for audit trail
+    await tx.voidRecord.create({
+      data: {
+        target: "ORDER_ITEM",
+        targetId: orderItemId,
+        reason: reason,
+        voidedById: user.id,
+        createdAt: new Date(),
+      },
+    });
+
+    // 3. Update order timestamp for UI refresh
+    const orderItem = await tx.orderItem.findUnique({
+      where: { id: orderItemId },
+      select: { orderId: true },
+    });
+
+    if (orderItem) {
+      await tx.order.update({
+        where: { id: orderItem.orderId },
+        data: { updatedAt: new Date() },
+      });
+    }
+  });
+
+  revalidatePath("/kitchen");
+  revalidatePath("/dashboard/close");
+  return { success: true };
 }

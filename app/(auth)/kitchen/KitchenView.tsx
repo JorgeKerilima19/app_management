@@ -1,5 +1,4 @@
-//app/(auth)/kitchen/KitchenView.tsx
-
+/// app/(auth)/kitchen/KitchenView.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -7,9 +6,15 @@ import {
   markOrderAsReady,
   fetchActiveKitchenOrders,
   fetchPreparedToday,
+  cancelOrderItem,
 } from "./actions";
 import type { KitchenOrder, PreparedOrder } from "./actions";
 import RequirementsModal from "./RequirementsModal";
+
+type CancelledItem = {
+  id: string;
+  cancelledAt: number;
+};
 
 export default function KitchenView({
   initialActive,
@@ -21,6 +26,9 @@ export default function KitchenView({
   const [activeOrders, setActiveOrders] = useState(initialActive);
   const [preparedOrders, setPreparedOrders] = useState(initialPrepared);
   const [isRequirementsModalOpen, setIsRequirementsModalOpen] = useState(false);
+
+  const [cancelledItems, setCancelledItems] = useState<CancelledItem[]>([]);
+
   const hasPlayedNewOrderSoundRef = useRef<Set<string>>(new Set());
   const hasPlayedColorChangeSoundRef = useRef<Set<string>>(new Set());
 
@@ -104,6 +112,16 @@ export default function KitchenView({
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = Date.now();
+      setCancelledItems((prev) =>
+        prev.filter((item) => now - item.cancelledAt < 5000),
+      );
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const handleMarkItemReady = async (orderItemId: string) => {
     const formData = new FormData();
     formData.set("orderItemId", orderItemId);
@@ -111,13 +129,51 @@ export default function KitchenView({
     loadOrders();
   };
 
-  const getCardStyles = (earliestItemTime: number) => {
+  const handleCancelItem = async (orderItemId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!confirm("¿Cancelar este ítem?")) return;
+
+    const formData = new FormData();
+    formData.set("orderItemId", orderItemId);
+    formData.set("reason", "Cancelado desde cocina");
+
+    try {
+      await cancelOrderItem(formData);
+
+      setCancelledItems((prev) => [
+        ...prev,
+        { id: orderItemId, cancelledAt: Date.now() },
+      ]);
+
+      // Reload orders to get updated status from server
+      loadOrders();
+    } catch (err) {
+      alert("Error al cancelar: " + (err as Error).message);
+    }
+  };
+
+  const getCardStyles = (
+    earliestItemTime: number,
+    hasCancelledItems: boolean,
+  ) => {
+    // If order has cancelled items, use special styling
+    if (hasCancelledItems) {
+      return {
+        border: "border-gray-400",
+        bg: "bg-gray-200",
+        text: "text-gray-600",
+        isCancelled: true,
+      };
+    }
+
     const ageMin = (Date.now() - earliestItemTime) / 60000;
     if (ageMin < 5) {
       return {
         border: "border-green-500",
         bg: "bg-green-500",
         text: "text-gray-900",
+        isCancelled: false,
       };
     }
     if (ageMin < 10) {
@@ -125,13 +181,25 @@ export default function KitchenView({
         border: "border-yellow-500",
         bg: "bg-yellow-700",
         text: "text-gray-900",
+        isCancelled: false,
       };
     }
     return {
       border: "border-red-500",
       bg: "bg-red-700 animate-pulse",
       text: "text-white",
+      isCancelled: false,
     };
+  };
+
+  const isRecentlyCancelled = (itemId: string) => {
+    return cancelledItems.some(
+      (item) => item.id === itemId && Date.now() - item.cancelledAt < 5000,
+    );
+  };
+
+  const orderHasCancelledItems = (order: KitchenOrder) => {
+    return order.items.some((item) => item.isCancelled);
   };
 
   return (
@@ -160,24 +228,36 @@ export default function KitchenView({
               const earliestItemTime = Math.min(
                 ...order.items.map((item) => item.itemOrderedAt.getTime()),
               );
-              const styles = getCardStyles(earliestItemTime);
+              const hasCancelled = orderHasCancelledItems(order);
+              const styles = getCardStyles(earliestItemTime, hasCancelled);
 
               return (
                 <div
                   key={order.id}
-                  className={`border-2 rounded-2xl p-5 cursor-pointer transition-all hover:shadow-lg ${styles.border} ${styles.bg}`}
+                  className={`border-2 rounded-2xl p-5 cursor-pointer transition-all hover:shadow-lg ${styles.border} ${styles.bg} ${
+                    hasCancelled ? "opacity-90" : ""
+                  }`}
                   onClick={() => {
-                    order.items.forEach((item) => handleMarkItemReady(item.id));
+                    // Only mark as ready if not cancelled
+                    if (!hasCancelled) {
+                      order.items
+                        .filter((item) => !item.isCancelled)
+                        .forEach((item) => handleMarkItemReady(item.id));
+                    }
                   }}
                 >
                   <div className="mb-4">
                     <h3
-                      className={`text-2xl font-bold ${styles.text} text-center`}
+                      className={`text-2xl font-bold ${styles.text} text-center ${
+                        hasCancelled ? "line-through" : ""
+                      }`}
                     >
                       {order.tableName}
                     </h3>
                     <p
-                      className={`text-sm ${styles.text === "text-white" ? "text-white" : "text-gray-700"}`}
+                      className={`text-sm ${styles.text === "text-white" ? "text-white" : "text-gray-700"} ${
+                        hasCancelled ? "line-through" : ""
+                      }`}
                     >
                       {new Date(earliestItemTime).toLocaleTimeString([], {
                         hour: "2-digit",
@@ -193,31 +273,79 @@ export default function KitchenView({
                       ([category, items]) => (
                         <div key={category}>
                           <div
-                            className={`font-bold ${styles.text === "text-white" ? "text-white" : "text-gray-800"} mb-1`}
+                            className={`font-bold ${styles.text === "text-white" ? "text-white" : "text-gray-800"} mb-1 ${
+                              hasCancelled ? "line-through opacity-70" : ""
+                            }`}
                           >
                             {category}
                           </div>
-                          {items.map((item) => (
-                            <div key={item.id} className="flex justify-between">
-                              <span
-                                className={`text-xl font-medium ${styles.text}`}
+                          {items.map((item) => {
+                            const isCancelled =
+                              item.isCancelled || isRecentlyCancelled(item.id);
+
+                            return (
+                              <div
+                                key={item.id}
+                                className={`flex justify-between items-center group ${
+                                  isCancelled ? "opacity-60" : ""
+                                }`}
                               >
-                                {item.name}{" "}
-                                {item.quantity > 1 && `(x${item.quantity})`}
-                              </span>
-                              {item.notes && (
-                                <span
-                                  className={`text-lg ${styles.text === "text-white" ? "text-white" : "text-gray-600"} italic`}
-                                >
-                                  "{item.notes}"
-                                </span>
-                              )}
-                            </div>
-                          ))}
+                                <div className="flex-1">
+                                  <span
+                                    className={`text-xl font-medium ${styles.text} ${
+                                      isCancelled ? "line-through" : ""
+                                    }`}
+                                  >
+                                    {item.name}{" "}
+                                    {item.quantity > 1 && `(x${item.quantity})`}
+                                  </span>
+                                  {item.notes && (
+                                    <span
+                                      className={`text-lg ${styles.text === "text-white" ? "text-white" : "text-gray-600"} italic ${
+                                        isCancelled ? "line-through" : ""
+                                      }`}
+                                    >
+                                      "{item.notes}"
+                                    </span>
+                                  )}
+                                </div>
+
+                                {!item.isCancelled && (
+                                  <button
+                                    onClick={(e) =>
+                                      handleCancelItem(item.id, e)
+                                    }
+                                    className="ml-2 px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 opacity-0 group-hover:opacity-100 transition"
+                                    title="Cancelar ítem"
+                                  >
+                                    ✕
+                                  </button>
+                                )}
+
+                                {/* Cancelled Badge */}
+                                {item.isCancelled && (
+                                  <span className="ml-2 px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded">
+                                    CANCELADO
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       ),
                     )}
                   </div>
+
+                  {/*  Cancelled Order Banner */}
+                  {hasCancelled && (
+                    <div className="mt-3 pt-3 border-t border-gray-400">
+                      <p
+                        className={`text-center text-sm font-medium ${styles.text}`}
+                      >
+                        ⚠️ Ítems cancelados en esta orden
+                      </p>
+                    </div>
+                  )}
                 </div>
               );
             })}

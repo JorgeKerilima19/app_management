@@ -1,3 +1,4 @@
+/// app/lib/inventory.ts
 import prisma from "./prisma";
 
 export async function deductInventoryForOrderItem(orderItemId: string) {
@@ -19,6 +20,17 @@ export async function deductInventoryForOrderItem(orderItemId: string) {
       throw new Error(`OrderItem ${orderItemId} not found`);
     }
 
+    if (orderItem.status === "VOIDED") {
+      console.log(
+        `Skipping inventory deduction for ${orderItem.status} OrderItem ${orderItemId}`,
+      );
+      return {
+        success: true,
+        skipped: true,
+        reason: orderItem.status === "VOIDED" ? "cancelled" : "voided",
+      };
+    }
+
     const alreadyDeducted = await tx.inventoryTransaction.findFirst({
       where: {
         referenceModel: "OrderItem",
@@ -32,10 +44,6 @@ export async function deductInventoryForOrderItem(orderItemId: string) {
       return { success: true, skipped: true, reason: "already_deducted" };
     }
 
-    if (orderItem.status === "VOIDED") {
-      return { success: true, skipped: true, reason: "voided" };
-    }
-
     const deductions: Array<{
       inventoryItemId: string;
       itemName: string;
@@ -45,15 +53,18 @@ export async function deductInventoryForOrderItem(orderItemId: string) {
     }> = [];
 
     for (const recipe of orderItem.menuItem.recipeItems) {
+      // Skip optional ingredients
       if (recipe.isOptional) continue;
 
       const totalDeduction = recipe.quantityRequired * orderItem.quantity;
 
+      // Update inventory quantity
       const updatedInventory = await tx.inventoryItem.update({
         where: { id: recipe.inventoryItemId },
         data: { currentQuantity: { decrement: totalDeduction } },
       });
 
+      // Log the transaction
       await tx.inventoryTransaction.create({
         data: {
           inventoryItemId: recipe.inventoryItemId,
@@ -89,7 +100,7 @@ export async function deductInventoryForOrder(orderId: string) {
   const orderItems = await prisma.orderItem.findMany({
     where: {
       orderId,
-      status: { in: ["PENDING", "PREPARING", "READY"] },
+      status: { in: ["PENDING", "READY"] },
       menuItem: {
         recipeItems: { some: {} },
       },
