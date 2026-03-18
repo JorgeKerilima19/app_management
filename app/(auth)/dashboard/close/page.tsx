@@ -1,23 +1,24 @@
-// app/dashboard/close/page.tsx
-import { getCurrentUser } from "@/lib/auth";
+// app/(auth)/dashboard/close/page.tsx
 import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
 import { fetchClosingSummary } from "./actions";
 import CloseClient from "./CloseClient";
 
-export default async function ClosingDashboardPage({
+export default async function ClosePage({
   searchParams,
 }: {
-  searchParams?: Promise<{ categoryId?: string; page?: string }>;
+  searchParams: Promise<{ page?: string; categoryId?: string }>;
 }) {
   const user = await getCurrentUser();
-  if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
+  if (!user || !["OWNER", "ADMIN", "CAJERO"].includes(user.role)) {
     redirect("/login");
   }
 
-  const params = await searchParams;
-  const categoryId = params?.categoryId;
-  const page = parseInt(params?.page || "1", 10);
+  const { page, categoryId } = await searchParams;
+  const currentPage = page ? parseInt(page, 10) : 1;
+  const itemsPerPage = 20;
 
-  const data = await fetchClosingSummary(categoryId, page, 10);
+  const data = await fetchClosingSummary(categoryId, currentPage, itemsPerPage);
+
   return <CloseClient initialData={data} />;
 }

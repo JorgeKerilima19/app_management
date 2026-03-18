@@ -3,6 +3,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import SupplyAdjustModal from "./SupplyAdjustModal";
 
 type InventoryItem = {
   id: string;
@@ -20,18 +21,26 @@ type Props = {
   categories: string[];
 };
 
+// Categories that typically need manual tracking
+const MANUAL_TRACKING_CATEGORIES = [
+  "Supplies",
+  "Packaging",
+  "Cleaning",
+  "Limpieza",
+  "Suministros",
+  "Envases",
+];
+
 export default function InventoryTable({ items, categories }: Props) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [adjustingItem, setAdjustingItem] = useState<InventoryItem | null>(
+    null,
+  );
 
-  // ✅ Filter items by search and category
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
-      // Category filter
-      if (selectedCategory && item.category !== selectedCategory) {
-        return false;
-      }
-      // Search filter
+      if (selectedCategory && item.category !== selectedCategory) return false;
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         return (
@@ -46,8 +55,8 @@ export default function InventoryTable({ items, categories }: Props) {
 
   return (
     <>
+      {/* Filters Section */}
       <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
-        {/* Search Bar */}
         <div>
           <input
             type="text"
@@ -67,7 +76,6 @@ export default function InventoryTable({ items, categories }: Props) {
           )}
         </div>
 
-        {/* Category Filter Buttons */}
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setSelectedCategory("")}
@@ -99,13 +107,12 @@ export default function InventoryTable({ items, categories }: Props) {
           })}
         </div>
 
-        {/* Results count */}
         <p className="text-sm text-gray-600">
           Mostrando {filteredItems.length} de {items.length} items
         </p>
       </div>
 
-      {/* Items Table */}
+      {/* Table Section */}
       {filteredItems.length === 0 ? (
         <div className="text-center py-12 bg-white border border-gray-200 rounded-xl">
           <p className="text-gray-500">
@@ -159,6 +166,11 @@ export default function InventoryTable({ items, categories }: Props) {
                   item.lowStockThreshold !== null &&
                   item.currentQuantity <= item.lowStockThreshold;
                 const isOutOfStock = item.currentQuantity <= 0;
+                const isManualTrack =
+                  item.category &&
+                  MANUAL_TRACKING_CATEGORIES.some(
+                    (c) => c.toLowerCase() === item.category?.toLowerCase(),
+                  );
 
                 return (
                   <tr
@@ -183,13 +195,7 @@ export default function InventoryTable({ items, categories }: Props) {
                     </td>
                     <td className="p-3">
                       <span
-                        className={`font-mono ${
-                          isOutOfStock
-                            ? "text-red-600 font-bold"
-                            : isLowStock
-                              ? "text-amber-600 font-semibold"
-                              : "text-gray-900"
-                        }`}
+                        className={`font-mono ${isOutOfStock ? "text-red-600 font-bold" : isLowStock ? "text-amber-600 font-semibold" : "text-gray-900"}`}
                       >
                         {item.currentQuantity.toFixed(2)}
                       </span>
@@ -223,12 +229,25 @@ export default function InventoryTable({ items, categories }: Props) {
                       {new Date(item.updatedAt).toLocaleDateString()}
                     </td>
                     <td className="p-3 text-right">
-                      <Link
-                        href={`/inventory/${item.id}`}
-                        className="text-violet-600 hover:text-violet-800 font-medium text-sm"
-                      >
-                        Editar
-                      </Link>
+                      <div className="flex justify-end gap-3 items-center">
+                        <Link
+                          href={`/inventory/${item.id}`}
+                          className="text-violet-600 hover:text-violet-800 font-medium text-sm"
+                        >
+                          Editar
+                        </Link>
+
+                        {/* ✅ Manual Adjustment Button */}
+                        {isManualTrack && (
+                          <button
+                            onClick={() => setAdjustingItem(item)}
+                            className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center gap-1 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition"
+                            title="Registrar uso o reposición manual"
+                          >
+                            📝 Uso
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -236,6 +255,17 @@ export default function InventoryTable({ items, categories }: Props) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Modal */}
+      {adjustingItem && (
+        <SupplyAdjustModal
+          itemId={adjustingItem.id}
+          itemName={adjustingItem.name}
+          currentQuantity={adjustingItem.currentQuantity}
+          unit={adjustingItem.unit}
+          onClose={() => setAdjustingItem(null)}
+        />
       )}
     </>
   );
