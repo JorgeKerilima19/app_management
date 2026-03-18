@@ -39,8 +39,8 @@ interface VoidMetadata {
   };
   checkTotalAtVoid?: string;
   voidedAt?: string;
-  itemsSummary?: string; // Pre-computed for CHECK voids
-  waiterName?: string; // Pre-computed for easier display
+  itemsSummary?: string;
+  waiterName?: string;
 }
 
 async function getVoidDetails(record: any) {
@@ -498,7 +498,7 @@ export default async function VoidRecordsPage({
                             : "Item Anulado"}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs whitespace-pre-line break-words">
+                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs whitespace-pre-line wrap-break-word">
                       <span className="text-gray-900">{record.details}</span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
