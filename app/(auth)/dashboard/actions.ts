@@ -5,6 +5,84 @@ import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 
+export type TurnData = {
+  name: string;
+  start: number;
+  end: number | null;
+  closedAt: string | null;
+  closedBy: string | null;
+  closedByName?: string;
+  salesSnapshot?: {
+    cash: number;
+    yape: number;
+    total: number;
+    capturedAt: string;
+    paymentCount?: number;
+  };
+  expectedCash?: number;
+  variance?: number;
+  note?: string;
+};
+
+export type DashboardData = {
+  dailySummary: {
+    id: string;
+    date: Date;
+    startingCash: number;
+    totalCash: number;
+    totalYape: number;
+    endingCash: number;
+    status: "OPEN" | "CLOSED";
+    openedAt: Date;
+    closedAt: Date | null;
+    openedById: string;
+    closedById: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    turnData: Record<string, TurnData> | null;
+    activeTurn: string | null;
+  } | null;
+  turnData: TurnData[];
+  activeTurn: string | null;
+  payments: {
+    totalCash: number;
+    totalYape: number;
+    totalOverall: number;
+    cashPercentage: number;
+    yapePercentage: number;
+  };
+  spendings: {
+    total: number;
+    netProfit: number;
+    marginPercent: number;
+  };
+  recentOrders: Array<{
+    id: string;
+    tableName: string;
+    firstItemName: string;
+    createdAt: Date;
+    items: Array<{
+      menuItem?: { name: string };
+      quantity: number;
+    }>;
+  }>;
+  recentVoids: Array<{
+    id: string;
+    targetDetails: string;
+    voidedBy?: { name: string; role: string };
+    reason: string;
+    createdAt: Date;
+  }>;
+  topItems: Array<{
+    menuItem?: {
+      name: string;
+      category?: { name: string };
+    };
+    totalQuantity: number;
+  }>;
+  date: Date;
+};
+
 function toNumber(value: any): number {
   if (value == null) return 0;
   if (typeof value === "number") return value;
@@ -62,7 +140,33 @@ export async function openRestaurant(startingCash: number) {
   revalidatePath("/dashboard");
 }
 
-export async function fetchDashboardData() {
+function parseTurnData(json: any): Record<string, TurnData> {
+  if (!json || typeof json !== "object") return {};
+
+  const result: Record<string, TurnData> = {};
+
+  for (const [key, value] of Object.entries(json)) {
+    const v = value as any;
+    result[key] = {
+      name: key,
+      start: typeof v?.start === "number" ? v.start : 0,
+      end: typeof v?.end === "number" ? v.end : null,
+      closedAt: typeof v?.closedAt === "string" ? v.closedAt : null,
+      closedBy: typeof v?.closedBy === "string" ? v.closedBy : null,
+      closedByName:
+        typeof v?.closedByName === "string" ? v.closedByName : undefined,
+      salesSnapshot: v?.salesSnapshot || undefined,
+      expectedCash:
+        typeof v?.expectedCash === "number" ? v.expectedCash : undefined,
+      variance: typeof v?.variance === "number" ? v.variance : undefined,
+      note: typeof v?.note === "string" ? v.note : undefined,
+    };
+  }
+
+  return result;
+}
+
+export async function fetchDashboardData(): Promise<DashboardData> {
   const user = await getCurrentUser();
   if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
     throw new Error("No autorizado");
@@ -138,7 +242,7 @@ export async function fetchDashboardData() {
   const netProfit = totalOverall - totalSpendings;
   const marginPercent = totalOverall > 0 ? (netProfit / totalOverall) * 100 : 0;
 
-  // === RECENT ORDERS - Enhanced with better item fetching ===
+  // === RECENT ORDERS ===
   const recentOrders = await prisma.order.findMany({
     where: {
       createdAt: { gte: today, lte: tomorrow },
@@ -152,7 +256,7 @@ export async function fetchDashboardData() {
           },
         },
         orderBy: { createdAt: "asc" },
-        take: 3, // Get first 3 items for display
+        take: 3,
       },
       check: {
         select: {
@@ -190,27 +294,33 @@ export async function fetchDashboardData() {
       const tableName =
         ids.length > 0 ? tableMap.get(ids[0]) || "Mesa" : "Mesa";
 
-      // ✅ Better item name extraction
       const itemNames = order.items
         .filter((item) => item.menuItem?.name)
         .map((item) => `${item.menuItem.name} (x${item.quantity})`);
 
       return {
-        ...order,
+        id: order.id,
         tableName,
         firstItemName:
           itemNames.length > 0 ? itemNames.join(", ") : "Ítem desconocido",
+        createdAt: order.createdAt,
+        items: order.items.map((item) => ({
+          menuItem: item.menuItem ? { name: item.menuItem.name } : undefined,
+          quantity: item.quantity,
+        })),
       };
     } catch (e) {
       return {
-        ...order,
+        id: order.id,
         tableName: "Mesa",
         firstItemName: "Ítem desconocido",
+        createdAt: order.createdAt,
+        items: [],
       };
     }
   });
 
-  // === RECENT VOIDS - Bulletproof with fallback to VoidRecord.note ===
+  // === RECENT VOIDS ===
   const recentVoids = await prisma.voidRecord.findMany({
     where: { createdAt: { gte: today, lte: tomorrow } },
     include: { voidedBy: { select: { name: true, role: true } } },
@@ -218,12 +328,9 @@ export async function fetchDashboardData() {
     take: 5,
   });
 
-  // Helper function with better error handling
   async function getVoidTargetDetails(record: any) {
     try {
-      // ✅ First check if we have note info (stored at void time)
       if (record.note && record.note.includes("Mesas:")) {
-        // Parse note format: "Mesas: 3, 5 | Total: S/45.50"
         return record.note;
       }
 
@@ -245,7 +352,6 @@ export async function fetchDashboardData() {
         });
 
         if (!item || !item.menuItem) {
-          // ✅ Fallback: Use void record info
           return `Item anulado — ${record.reason || "Sin motivo"}`;
         }
 
@@ -351,8 +457,13 @@ export async function fetchDashboardData() {
     recentVoids.map(async (record) => {
       const targetDetails = await getVoidTargetDetails(record);
       return {
-        ...record,
+        id: record.id,
         targetDetails,
+        voidedBy: record.voidedBy
+          ? { name: record.voidedBy.name, role: record.voidedBy.role }
+          : undefined,
+        reason: record.reason || "",
+        createdAt: record.createdAt,
       };
     }),
   );
@@ -372,13 +483,24 @@ export async function fetchDashboardData() {
   });
 
   const menuItemIds = topItems.map((t) => t.menuItemId);
-  let menuItemsMap = new Map();
+  let menuItemsMap = new Map<
+    string,
+    { name: string; category?: { name: string } }
+  >();
   if (menuItemIds.length > 0) {
     const menuItems = await prisma.menuItem.findMany({
       where: { id: { in: menuItemIds } },
       include: { category: true },
     });
-    menuItemsMap = new Map(menuItems.map((m) => [m.id, m]));
+    menuItemsMap = new Map(
+      menuItems.map((m) => [
+        m.id,
+        {
+          name: m.name,
+          category: m.category ? { name: m.category.name } : undefined,
+        },
+      ]),
+    );
   }
 
   const topItemsWithDetails = topItems.map((t) => ({
@@ -386,8 +508,34 @@ export async function fetchDashboardData() {
     totalQuantity: t._sum.quantity || 0,
   }));
 
+  // === TURN DATA (Safe JSON parsing) ===
+  const turnDataParsed = parseTurnData(dailySummary?.turnData);
+  const turnDataArray: TurnData[] = Object.values(turnDataParsed);
+  const activeTurn: string | null = dailySummary?.activeTurn ?? null;
+
+  // === RETURN TYPED DATA ===
   return {
-    dailySummary,
+    dailySummary: dailySummary
+      ? {
+          id: dailySummary.id,
+          date: dailySummary.date,
+          startingCash: toNumber(dailySummary.startingCash),
+          totalCash: toNumber(dailySummary.totalCash),
+          totalYape: toNumber(dailySummary.totalYape),
+          endingCash: toNumber(dailySummary.endingCash),
+          status: dailySummary.status as "OPEN" | "CLOSED",
+          openedAt: dailySummary.openedAt,
+          closedAt: dailySummary.closedAt,
+          openedById: dailySummary.openedById,
+          closedById: dailySummary.closedById,
+          createdAt: dailySummary.createdAt,
+          updatedAt: dailySummary.updatedAt,
+          turnData: turnDataParsed,
+          activeTurn: dailySummary.activeTurn ?? null,
+        }
+      : null,
+    turnData: turnDataArray,
+    activeTurn,
     payments: {
       totalCash,
       totalYape,
@@ -404,5 +552,185 @@ export async function fetchDashboardData() {
     recentVoids: recentVoidsProcessed,
     topItems: topItemsWithDetails,
     date: today,
+  };
+}
+
+export async function openTurn(startingCash: number, turnName: string) {
+  const user = await getCurrentUser();
+  if (!user || !["OWNER", "ADMIN", "CAJERO"].includes(user.role)) {
+    throw new Error("No autorizado");
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const summary = await prisma.dailySummary.findUnique({
+    where: { date: today },
+  });
+
+  if (!summary) {
+    throw new Error("Primero debe abrir el restaurante");
+  }
+
+  if (summary.status === "CLOSED") {
+    throw new Error("El día ya está cerrado");
+  }
+
+  const existingTurnData = parseTurnData(summary.turnData);
+
+  if (existingTurnData[turnName]) {
+    throw new Error(`El turno ${turnName} ya existe`);
+  }
+
+  await prisma.dailySummary.update({
+    where: { id: summary.id },
+    data: {
+      turnData: {
+        ...existingTurnData,
+        [turnName]: {
+          start: startingCash,
+          end: null,
+          closedAt: null,
+          closedBy: null,
+          salesSnapshot: {
+            cash: 0,
+            yape: 0,
+            total: 0,
+            capturedAt: new Date().toISOString(),
+          },
+        },
+      },
+      activeTurn: turnName,
+      startingCash: startingCash,
+    },
+  });
+
+  revalidatePath("/dashboard");
+}
+
+export async function closeTurn(
+  turnName: string,
+  declaredCash: number,
+  note?: string,
+) {
+  const user = await getCurrentUser();
+  if (!user || !["OWNER", "ADMIN", "CAJERO"].includes(user.role)) {
+    throw new Error("No autorizado");
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const summary = await prisma.dailySummary.findUnique({
+    where: { date: today },
+  });
+
+  if (!summary) {
+    throw new Error("No hay resumen del día");
+  }
+
+  // ✅ Parse turnData with our helper for type safety
+  const turnData = parseTurnData(summary.turnData);
+  const turn = turnData[turnName];
+
+  if (!turn) {
+    throw new Error(`Turno ${turnName} no encontrado`);
+  }
+
+  if (turn.end !== null) {
+    throw new Error(`El turno ${turnName} ya está cerrado`);
+  }
+
+  // === CAPTURE SALES SNAPSHOT ===
+  // Find the last closed turn's timestamp to filter payments from that point
+  const closedTurns = Object.values(turnData).filter(
+    (t) => t.closedAt !== null,
+  );
+
+  const lastTurnClose =
+    closedTurns.length > 0
+      ? closedTurns.sort(
+          (a, b) =>
+            new Date(b.closedAt!).getTime() - new Date(a.closedAt!).getTime(),
+        )[0]?.closedAt
+      : null;
+
+  const payments = await prisma.payment.findMany({
+    where: {
+      createdAt: {
+        gte: lastTurnClose ? new Date(lastTurnClose) : today,
+        lte: new Date(),
+      },
+      check: {
+        status: "CLOSED",
+      },
+    },
+    select: {
+      id: true,
+      method: true,
+      cashAmount: true,
+      yapeAmount: true,
+      amount: true,
+    },
+  });
+
+  let cashSales = 0;
+  let yapeSales = 0;
+
+  for (const p of payments) {
+    cashSales += toNumber(p.cashAmount || 0);
+    yapeSales += toNumber(p.yapeAmount || 0);
+  }
+
+  const totalSales = cashSales + yapeSales;
+  const expectedCash = turn.start + cashSales;
+  const variance = declaredCash - expectedCash;
+
+  // === UPDATE TURN DATA ===
+  turnData[turnName] = {
+    ...turn,
+    end: declaredCash,
+    closedAt: new Date().toISOString(),
+    closedBy: user.id,
+    closedByName: user.name,
+    salesSnapshot: {
+      cash: cashSales,
+      yape: yapeSales,
+      total: totalSales,
+      capturedAt: new Date().toISOString(),
+      paymentCount: payments.length,
+    },
+    expectedCash,
+    variance,
+    note: note || "",
+  };
+
+  // Find next turn name (turn1, turn2, turn3...)
+  const turnNumbers = Object.keys(turnData)
+    .map((k) => parseInt(k.replace("turn", "")))
+    .filter((n) => !isNaN(n));
+  const nextTurnNumber = Math.max(...turnNumbers, 0) + 1;
+
+  await prisma.dailySummary.update({
+    where: { id: summary.id },
+    data: {
+      turnData: turnData as any,
+      activeTurn: null,
+      endingCash: declaredCash,
+      totalCash: toNumber(summary.totalCash) + cashSales,
+      totalYape: toNumber(summary.totalYape) + yapeSales,
+    },
+  });
+
+  revalidatePath("/dashboard");
+
+  return {
+    success: true,
+    turnName,
+    declaredCash,
+    expectedCash,
+    variance,
+    nextTurnName: `turn${nextTurnNumber}`,
+    nextTurnStartingCash: declaredCash,
   };
 }

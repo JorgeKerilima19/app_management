@@ -1,29 +1,30 @@
-// app/(auth)/requirements/components/RequirementsList.tsx
 "use client";
 
 import { useState } from "react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { cancelRequirement } from "./actions";
 import type { DailyRequirement } from "./actions";
 import ConfirmDialog from "./ConfirmDialog";
 
 type Props = {
   requirements: DailyRequirement[];
-  canEditPending: boolean;
   canCancel: boolean;
-  canApprove: boolean;
-  canDeliver: boolean;
   currentUserId: string;
   currentUserRole: string;
 };
 
+function formatLimaDate(
+  date: Date,
+  options: Intl.DateTimeFormatOptions,
+): string {
+  return new Date(date).toLocaleDateString("es-PE", {
+    timeZone: "America/Lima",
+    ...options,
+  });
+}
+
 export default function RequirementsList({
   requirements,
-  canEditPending,
   canCancel,
-  canApprove,
-  canDeliver,
   currentUserId,
   currentUserRole,
 }: Props) {
@@ -43,10 +44,10 @@ export default function RequirementsList({
   const handleCancel = async (requirementId: string) => {
     const formData = new FormData();
     formData.append("requirementId", requirementId);
-
     try {
       await cancelRequirement(formData);
       alert("✅ Requerimiento cancelado");
+      window.location.reload();
     } catch (e) {
       alert("Error: " + (e as Error).message);
     }
@@ -71,7 +72,6 @@ export default function RequirementsList({
     };
     const labels: Record<string, string> = {
       PENDING: "Pendiente",
-      APPROVED: "Aprobado",
       PARTIALLY_DELIVERED: "Entrega Parcial",
       DELIVERED: "Entregado",
       CANCELLED: "Cancelado",
@@ -86,17 +86,22 @@ export default function RequirementsList({
   };
 
   if (requirements.length === 0) {
-    return null;
+    return (
+      <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
+        <p className="text-gray-600 mb-2">No se encontraron requerimientos</p>
+      </div>
+    );
   }
 
   return (
     <>
       <div className="space-y-4">
         {requirements.map((req) => {
-          const isCreatedByUser = req.createdById === currentUserId;
           const isPending = req.status === "PENDING";
-          const canEdit = isPending && (isCreatedByUser || canEditPending);
           const canCancelReq = isPending && canCancel;
+          const canEdit = ["CAJERO", "COCINERO", "OWNER", "ADMIN"].includes(
+            currentUserRole,
+          );
 
           return (
             <div
@@ -108,42 +113,21 @@ export default function RequirementsList({
                 <div className="flex items-center gap-3">
                   <div>
                     <h3 className="font-semibold text-gray-900">
-                      {format(req.date, "EEEE d 'de' MMMM", { locale: es })}
+                      {formatLimaDate(req.date, {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                      })}
                     </h3>
                     <p className="text-xs text-gray-500">
                       Creado por {req.createdBy.name} •{" "}
-                      {format(req.createdAt, "HH:mm", { locale: es })}
+                      {formatLimaDate(req.createdAt, {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </p>
                   </div>
                   {getStatusBadge(req.status)}
-                </div>
-
-                <div className="flex gap-2">
-                  {canEdit && req.items.length > 0 && (
-                    <a
-                      href={`/requirements?view=form&requirementId=${req.id}`}
-                      className="px-3 py-1 text-xs bg-violet-100 text-violet-700 rounded hover:bg-violet-200"
-                    >
-                      ✏️ Editar
-                    </a>
-                  )}
-                  {canCancelReq && (
-                    <button
-                      onClick={() =>
-                        showConfirm(
-                          "Cancelar Requerimiento",
-                          "¿Está seguro? Esta acción no se puede deshacer.",
-                          () => handleCancel(req.id),
-                          true,
-                        )
-                      }
-                      className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
-                    >
-                      🗑️ Cancelar
-                    </button>
-                  )}
-                  {/* ❌ Removed: Approve button (handled in admin page) */}
-                  {/* ❌ Removed: Deliver button (handled in admin page) */}
                 </div>
               </div>
 
@@ -220,11 +204,7 @@ export default function RequirementsList({
                           </td>
                           <td className="px-4 py-3 text-right">
                             <span
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                isFullyDelivered
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-gray-100 text-gray-800"
-                              }`}
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${isFullyDelivered ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}
                             >
                               {itemStatus}
                             </span>

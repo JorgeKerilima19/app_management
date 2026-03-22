@@ -4,6 +4,12 @@ import { redirect } from "next/navigation";
 import { fetchDashboardData, openRestaurant } from "./actions";
 import Link from "next/link";
 
+// Components (all in same folder)
+import { TurnManager } from "./TurnManager";
+import { PaymentSummary } from "./PaymentSummary";
+import { RecentActivity } from "./RecentActivity";
+import { TopItemsTable } from "./TopItemsTable";
+
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
@@ -37,7 +43,6 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
-      {/* Open Restaurant */}
       {!data.dailySummary?.status || data.dailySummary.status === "CLOSED" ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
@@ -63,7 +68,7 @@ export default async function DashboardPage() {
         </div>
       ) : (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-800">
               Restaurante Abierto
             </h2>
@@ -74,191 +79,29 @@ export default async function DashboardPage() {
               Cerrar Día
             </Link>
           </div>
-          <p className="mt-2 text-gray-600">
-            Apertura: S/ {Number(data.dailySummary.startingCash).toFixed(2)}
-          </p>
+
+          <TurnManager
+            dailySummary={data.dailySummary}
+            activeTurn={data.activeTurn}
+            turnData={data.turnData}
+          />
         </div>
       )}
 
-      {/* Payment Summary + Spendings - UPDATED */}
       {data.dailySummary?.status === "OPEN" && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-            <h3 className="text-lg font-bold text-green-800">Efectivo</h3>
-            <p className="text-2xl font-bold mt-2 text-gray-900">
-              S/ {data.payments.totalCash.toFixed(2)}
-            </p>
-            <p className="text-sm text-gray-600">
-              ({data.payments.cashPercentage.toFixed(1)}%)
-            </p>
-          </div>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-            <h3 className="text-lg font-bold text-blue-800">Yape</h3>
-            <p className="text-2xl font-bold mt-2 text-gray-900">
-              S/ {data.payments.totalYape.toFixed(2)}
-            </p>
-            <p className="text-sm text-gray-600">
-              ({data.payments.yapePercentage.toFixed(1)}%)
-            </p>
-          </div>
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
-            <h3 className="text-lg font-bold text-orange-800">Gastos</h3>
-            <p className="text-2xl font-bold mt-2 text-gray-900">
-              S/ {data.spendings.total.toFixed(2)}
-            </p>
-            <p className="text-sm text-gray-600">Compras + Mermas</p>
-          </div>
-          <div className="bg-violet-50 border border-violet-200 rounded-lg p-4 text-center">
-            <h3 className="text-lg font-bold text-violet-800">Neto</h3>
-            <p
-              className={`text-2xl font-bold mt-2 ${
-                data.spendings.netProfit >= 0
-                  ? "text-green-700"
-                  : "text-red-700"
-              }`}
-            >
-              S/ {data.spendings.netProfit.toFixed(2)}
-            </p>
-
-            {/* ✅ Subfields for Gastos and Ganancias */}
-            <div className="mt-3 pt-3 border-t border-violet-200 space-y-1">
-              <div className="flex justify-between text-lg">
-                <span className="text-gray-600">Ventas:</span>
-                <span className="font-medium text-gray-900">
-                  S/ {data.payments.totalOverall.toFixed(2)}
-                </span>
-              </div>
-              <div className="flex justify-between text-lg">
-                <span className="text-gray-600">Gastos:</span>
-                <span className="font-medium text-orange-700">
-                  - S/ {data.spendings.total.toFixed(2)}
-                </span>
-              </div>
-              <div className="flex justify-between text-lg font-semibold">
-                <span className="text-gray-700">Ganancia:</span>
-                <span
-                  className={`${
-                    data.spendings.netProfit >= 0
-                      ? "text-green-700"
-                      : "text-red-700"
-                  }`}
-                >
-                  S/ {data.spendings.netProfit.toFixed(2)}
-                </span>
-              </div>
-            </div>
-
-            <p className="text-xs text-gray-600 mt-3 pt-2 border-t border-violet-200">
-              ({data.spendings.marginPercent.toFixed(1)}% margen)
-            </p>
-          </div>
-        </div>
+        <PaymentSummary payments={data.payments} spendings={data.spendings} />
       )}
 
       {/* Recent Activity */}
       {data.dailySummary?.status === "OPEN" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Recent Orders */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">
-              Últimos Pedidos
-            </h3>
-            {data.recentOrders.length === 0 ? (
-              <p className="text-gray-500">Sin pedidos recientes</p>
-            ) : (
-              <div className="space-y-3">
-                {data.recentOrders.map((order: any) => (
-                  <div
-                    key={order.id}
-                    className="flex justify-between items-start text-sm py-2 border-b border-gray-100"
-                  >
-                    <div className="flex-1">
-                      <span className="font-medium text-gray-900">
-                        Mesa {order.tableName}
-                      </span>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {order.firstItemName || "Sin items"}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Recent Voids - UPDATED */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">
-              Anulaciones Recientes
-            </h3>
-            {data.recentVoids.length === 0 ? (
-              <p className="text-gray-500">Sin anulaciones recientes</p>
-            ) : (
-              <div className="space-y-3">
-                {data.recentVoids.map((voidRecord: any) => (
-                  <div
-                    key={voidRecord.id}
-                    className="flex justify-between items-start text-sm py-2 border-b border-gray-100"
-                  >
-                    <div className="flex-1">
-                      <span className="font-medium text-gray-900">
-                        {voidRecord.targetDetails || "Desconocido"}
-                      </span>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {voidRecord.voidedBy?.name || "Desconocido"}
-                        {voidRecord.voidedBy?.role &&
-                          ` (${voidRecord.voidedBy.role})`}
-                        {" • "}
-                        {voidRecord.reason || "Sin motivo"}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        <RecentActivity
+          recentOrders={data.recentOrders}
+          recentVoids={data.recentVoids}
+        />
       )}
 
-      {/* Top Items */}
       {data.dailySummary?.status === "OPEN" && data.topItems.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">
-            Ítems Más Vendidos
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Ítem
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Categoría
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Cantidad
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {data.topItems.map((item: any, idx: any) => (
-                  <tr key={idx} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {item.menuItem?.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.menuItem?.category?.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.totalQuantity}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <TopItemsTable topItems={data.topItems} />
       )}
     </div>
   );

@@ -40,11 +40,7 @@ export default function ConfirmDialog({
           <button
             type="button"
             onClick={onConfirm}
-            className={`px-4 py-2 text-white rounded text-sm ${
-              isDanger
-                ? "bg-red-600 hover:bg-red-700"
-                : "bg-violet-600 hover:bg-violet-700"
-            }`}
+            className={`px-4 py-2 text-white rounded text-sm ${isDanger ? "bg-red-600 hover:bg-red-700" : "bg-violet-600 hover:bg-violet-700"}`}
           >
             Confirmar
           </button>

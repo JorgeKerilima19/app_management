@@ -15,6 +15,25 @@ import {
   VoidRecords,
 } from "./components";
 import { exportClosingReportToExcel } from "@/lib/excelExport";
+import { TurnSummary } from "./TurnSummary";
+
+export type Turn = {
+  name: string;
+  start: number;
+  end: number | null;
+  closedAt: string | null;
+  closedByName: string | null;
+  salesSnapshot?: {
+    cash: number;
+    yape: number;
+    total: number;
+    capturedAt: string;
+    paymentCount?: number;
+  };
+  expectedCash?: number | null;
+  variance?: number | null;
+  note?: string | null;
+};
 
 type MenuItem = {
   price: any;
@@ -42,6 +61,7 @@ export type ClosingData = {
     endingCash: number;
     status: "OPEN" | "CLOSED";
   } | null;
+  turns: Turn[];
   sales: {
     totalCash: number;
     totalYape: number;
@@ -79,6 +99,7 @@ export type ClosingData = {
     totalVoided: number;
     reason: string;
     createdAt: Date;
+    _metadata?: any;
   }[];
   manualAdjustments?: {
     id: string;
@@ -137,6 +158,10 @@ export default function CloseClient({
           sales={initialData.sales}
           spendings={initialData.spendings}
         />
+      )}
+
+      {initialData.turns && initialData.turns.length > 0 && (
+        <TurnSummary turns={initialData.turns} />
       )}
 
       {initialData.spendings.items.length > 0 && (

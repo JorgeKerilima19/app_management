@@ -1,11 +1,9 @@
-// app/(auth)/settings/RequirementsCard.tsx
 "use client";
 
 import { useState } from "react";
 import {
   cancelRequirement,
   deliverRequirementItem,
-  approveRequirement,
   removeRequirementItem,
 } from "../requirements/actions";
 
@@ -39,15 +37,15 @@ type Props = {
 export default function RequirementsCard({ requirements, userRole }: Props) {
   const [deliveringId, setDeliveringId] = useState<string | null>(null);
   const [deliverQuantity, setDeliverQuantity] = useState("");
-  const [approvingId, setApprovingId] = useState<string | null>(null);
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
 
+  // ✅ Normalize role for safe comparison
+  const normalizedRole = userRole?.toUpperCase?.() || "";
+  const canManage = ["OWNER", "ADMIN"].includes(normalizedRole);
+
   const formatDateLima = (date: Date) => {
-    const limaStr = new Date(date).toLocaleString("en-US", {
+    return new Date(date).toLocaleDateString("es-PE", {
       timeZone: "America/Lima",
-    });
-    const limaDate = new Date(limaStr);
-    return limaDate.toLocaleDateString("es-PE", {
       weekday: "long",
       year: "numeric",
       month: "long",
@@ -81,25 +79,6 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
     }
   };
 
-  const handleApprove = async (requirementId: string) => {
-    if (
-      !confirm("¿Aprobar este requerimiento? Los items ya no podrán editarse.")
-    )
-      return;
-    const formData = new FormData();
-    formData.append("requirementId", requirementId);
-    try {
-      setApprovingId(requirementId);
-      await approveRequirement(formData);
-      alert("✅ Requerimiento aprobado");
-      window.location.reload();
-    } catch (e) {
-      alert("Error: " + (e as Error).message);
-    } finally {
-      setApprovingId(null);
-    }
-  };
-
   const handleCancel = async (requirementId: string) => {
     if (!confirm("¿Cancelar este requerimiento?")) return;
     const formData = new FormData();
@@ -113,16 +92,13 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
     }
   };
 
-  // ✅ NEW: Remove individual item from requirement
   const handleRemoveItem = async (
     requirementItemId: string,
     itemName: string,
   ) => {
     if (!confirm(`¿Eliminar "${itemName}" de este requerimiento?`)) return;
-
     const formData = new FormData();
     formData.append("requirementItemId", requirementItemId);
-
     try {
       setRemovingItemId(requirementItemId);
       await removeRequirementItem(formData);
@@ -145,7 +121,6 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
     };
     const labels: Record<string, string> = {
       PENDING: "Pendiente",
-      APPROVED: "Aprobado",
       PARTIALLY_DELIVERED: "Entrega Parcial",
       DELIVERED: "Entregado",
       CANCELLED: "Cancelado",
@@ -161,8 +136,6 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
 
   if (requirements.length === 0) return null;
 
-  const canManage = ["OWNER", "ADMIN"].includes(userRole);
-
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
       <div className="flex justify-between items-center mb-4">
@@ -176,7 +149,18 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
 
       <div className="space-y-4">
         {requirements.map((req) => {
-          const isPending = req.status === "PENDING";
+          const normalizedStatus = req.status?.toUpperCase?.() || req.status;
+
+          // ✅ CORRECTO: Se puede cancelar solo si está PENDING
+          const isPending = normalizedStatus === "PENDING";
+          const canCancelReq = isPending && canManage;
+
+          // ✅ CORRECTO: Se puede entregar si NO está DELIVERED o CANCELLED
+          const canDeliverItems =
+            canManage &&
+            normalizedStatus !== "DELIVERED" &&
+            normalizedStatus !== "CANCELLED";
+
           const hasItems = req.items.length > 0;
           const allDelivered = req.items.every(
             (item) => item.quantityDelivered >= item.quantityRequested,
@@ -196,37 +180,19 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
                   <p className="text-sm text-gray-500">
                     Solicitado por: {req.createdBy.name} ({req.createdBy.role})
                   </p>
-                  {req.approvedBy && (
-                    <p className="text-sm text-gray-500">
-                      Aprobado por: {req.approvedBy.name}
-                    </p>
-                  )}
                   {req.notes && (
                     <p className="text-sm text-gray-600 mt-1">📝 {req.notes}</p>
                   )}
                 </div>
 
                 {/* Requirement-level Actions */}
-                {canManage && (
-                  <div className="flex flex-wrap gap-2">
-                    {isPending && hasItems && (
-                      <button
-                        onClick={() => handleApprove(req.id)}
-                        disabled={approvingId === req.id}
-                        className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        {approvingId === req.id ? "Aprobando..." : "✓ Aprobar"}
-                      </button>
-                    )}
-                    {isPending && (
-                      <button
-                        onClick={() => handleCancel(req.id)}
-                        className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
-                      >
-                        X Cancelar
-                      </button>
-                    )}
-                  </div>
+                {canCancelReq && (
+                  <button
+                    onClick={() => handleCancel(req.id)}
+                    className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                  >
+                    X Cancelar
+                  </button>
                 )}
               </div>
 
@@ -242,9 +208,7 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
                   return (
                     <div
                       key={item.id}
-                      className={`flex flex-wrap justify-between items-center p-2 rounded ${
-                        isFullyDelivered ? "bg-green-50" : "bg-gray-50"
-                      }`}
+                      className={`flex flex-wrap justify-between items-center p-2 rounded ${isFullyDelivered ? "bg-green-50" : "bg-gray-50"}`}
                     >
                       <div className="flex-1 min-w-0">
                         <span className="text-sm font-medium text-gray-900">
@@ -259,7 +223,7 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
                             "{item.notes}"
                           </span>
                         )}
-                        {!isFullyDelivered && req.status !== "PENDING" && (
+                        {!isFullyDelivered && canDeliverItems && (
                           <span className="text-xs text-orange-600 block mt-1">
                             Faltan: {remaining} {item.inventoryItem.unit}
                           </span>
@@ -268,8 +232,8 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
 
                       {/* Item Actions */}
                       <div className="flex items-center gap-2 mt-2 sm:mt-0">
-                        {/* Deliver Button - Only for OWNER/ADMIN, only when not pending */}
-                        {canManage && !isPending && !isFullyDelivered ? (
+                        {/* ✅ Deliver Button - Shows for PENDING, PARTIALLY_DELIVERED */}
+                        {canDeliverItems && !isFullyDelivered ? (
                           isDelivering ? (
                             <div className="flex items-center gap-2">
                               <input
@@ -317,9 +281,13 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
                           <span className="text-xs text-green-600 font-medium">
                             ✓ Completado
                           </span>
-                        ) : req.status === "PENDING" ? (
+                        ) : normalizedStatus === "DELIVERED" ? (
                           <span className="text-xs text-gray-400">
-                            Pendiente de aprobación
+                            Requerimiento completado
+                          </span>
+                        ) : normalizedStatus === "CANCELLED" ? (
+                          <span className="text-xs text-gray-400">
+                            Cancelado
                           </span>
                         ) : (
                           <span className="text-xs text-gray-400">
@@ -327,8 +295,10 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
                           </span>
                         )}
 
-                        {/* ✅ DELETE ITEM BUTTON - Only for OWNER/ADMIN */}
-                        {canManage && !isFullyDelivered && (
+                        {/* ✅ DELETE ITEM BUTTON - Only for OWNER/ADMIN, when not fully delivered */}
+                        {canManage &&
+                        !isFullyDelivered &&
+                        normalizedStatus !== "CANCELLED" ? (
                           <button
                             onClick={() =>
                               handleRemoveItem(item.id, item.inventoryItem.name)
@@ -339,7 +309,7 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
                           >
                             {isRemoving ? "…" : "X"}
                           </button>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   );
@@ -362,7 +332,7 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
                     ? "s"
                     : ""}
                 </span>
-                {allDelivered && req.status !== "PENDING" && (
+                {allDelivered && normalizedStatus !== "PENDING" && (
                   <span className="text-green-600 font-medium">
                     ✓ Todo entregado
                   </span>

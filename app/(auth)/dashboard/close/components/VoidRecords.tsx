@@ -4,7 +4,7 @@ type Props = {
   records: {
     id: string;
     voidedBy: { name: string } | null;
-    target: string;
+    target: string; // "Item Anulado", "Orden Anulada", "Cuenta Anulada"
     targetDetails: string;
     totalVoided: number;
     reason: string;
@@ -25,7 +25,7 @@ export function VoidRecords({ records }: Props) {
             Total anulado: S/{" "}
             {records
               .reduce((sum, r) => {
-                // Calculate from metadata if available for accuracy
+                // ✅ ORDER_ITEM: Calculate from metadata
                 if (
                   r._metadata?.menuItem?.price &&
                   r._metadata?.quantities?.voided
@@ -35,6 +35,13 @@ export function VoidRecords({ records }: Props) {
                     parseFloat(r._metadata.menuItem.price) *
                       r._metadata.quantities.voided
                   );
+                }
+                // ✅ CHECK: Use check total from metadata
+                if (
+                  r.target === "Cuenta Anulada" &&
+                  r._metadata?.check?.total
+                ) {
+                  return sum + parseFloat(r._metadata.check.total);
                 }
                 return sum;
               }, 0)
@@ -75,18 +82,28 @@ export function VoidRecords({ records }: Props) {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {records.map((record) => {
-                // ✅ Calculate amount from metadata when available
-                const amount =
+                // ✅ Calculate amount with better fallbacks
+                let amount = "—";
+
+                if (
                   record._metadata?.menuItem?.price &&
                   record._metadata?.quantities?.voided
-                    ? (
-                        parseFloat(record._metadata.menuItem.price) *
-                        record._metadata.quantities.voided
-                      ).toFixed(2)
-                    : record.target === "Cuenta Anulada" &&
-                        record._metadata?.check?.total
-                      ? parseFloat(record._metadata.check.total).toFixed(2)
-                      : "—";
+                ) {
+                  // ORDER_ITEM
+                  amount = (
+                    parseFloat(record._metadata.menuItem.price) *
+                    record._metadata.quantities.voided
+                  ).toFixed(2);
+                } else if (
+                  record.target === "Cuenta Anulada" &&
+                  record._metadata?.check?.total
+                ) {
+                  // CHECK
+                  amount = parseFloat(record._metadata.check.total).toFixed(2);
+                } else if (record.target === "Orden Anulada") {
+                  // ORDER: No specific amount, show dash
+                  amount = "—";
+                }
 
                 return (
                   <tr key={record.id} className="hover:bg-gray-50">
@@ -112,16 +129,11 @@ export function VoidRecords({ records }: Props) {
                         {record.target}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-900 max-w-xs">
+
+                    <td className="px-4 py-3 text-sm text-gray-900 max-w-md">
                       <div className="truncate" title={record.targetDetails}>
                         {record.targetDetails || "Sin detalles"}
                       </div>
-                      {/* Show category if available in metadata */}
-                      {record._metadata?.menuItem?.category && (
-                        <div className="text-xs text-gray-500">
-                          {record._metadata.menuItem.category}
-                        </div>
-                      )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                       {record.totalVoided}

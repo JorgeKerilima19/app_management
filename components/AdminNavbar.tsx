@@ -156,7 +156,7 @@ export default function AdminSidebar({ user }: { user: User }) {
             </svg>
             <div>
               <h1 className="text-lg font-bold leading-tight">
-                Taguchi Restaurant
+                Tacuchi Restaurant
               </h1>
               <p className="text-violet-200 text-xs">{roleLabels[user.role]}</p>
             </div>

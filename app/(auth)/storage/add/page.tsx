@@ -1,3 +1,5 @@
+//app\(auth)\storage\add\page.tsx
+
 import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";

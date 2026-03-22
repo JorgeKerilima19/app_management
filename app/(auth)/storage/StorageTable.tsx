@@ -4,6 +4,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import AddQuantityModal from "./AddQuantityModal";
+import TransferToInventoryModal from "./TransferToInventoryModal";
 
 type StorageItem = {
   id: string;
@@ -34,16 +35,13 @@ export default function StorageTable({
 }: Props) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [modalOpen, setModalOpen] = useState(false);
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<StorageItem | null>(null);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
-      // Category filter
-      if (selectedCategory && item.category !== selectedCategory) {
-        return false;
-      }
-      // Search filter
+      if (selectedCategory && item.category !== selectedCategory) return false;
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         return (
@@ -56,21 +54,26 @@ export default function StorageTable({
     });
   }, [items, selectedCategory, searchQuery]);
 
-  const handleOpenModal = (item: StorageItem) => {
+  const handleOpenAddModal = (item: StorageItem) => {
     setSelectedItem(item);
-    setModalOpen(true);
+    setAddModalOpen(true);
   };
 
-  const handleCloseModal = () => {
-    setModalOpen(false);
+  const handleOpenTransferModal = (item: StorageItem) => {
+    setSelectedItem(item);
+    setTransferModalOpen(true);
+  };
+
+  const handleCloseModals = () => {
+    setAddModalOpen(false);
+    setTransferModalOpen(false);
     setSelectedItem(null);
   };
 
   return (
     <>
-      {/* ✅ Filters Section - Top of page */}
+      {/* ✅ Filters Section */}
       <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
-        {/* Search Bar */}
         <div>
           <input
             type="text"
@@ -90,7 +93,6 @@ export default function StorageTable({
           )}
         </div>
 
-        {/* Category Filter Buttons */}
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setSelectedCategory("")}
@@ -122,7 +124,6 @@ export default function StorageTable({
           })}
         </div>
 
-        {/* Results count */}
         <p className="text-sm text-gray-600">
           Mostrando {filteredItems.length} de {items.length} items
         </p>
@@ -237,10 +238,31 @@ export default function StorageTable({
                           Editar
                         </Link>
                         <button
-                          onClick={() => handleOpenModal(item)}
+                          onClick={() => handleOpenAddModal(item)}
                           className="text-green-600 hover:text-green-800 font-medium text-sm"
                         >
                           + Stock
+                        </button>
+                        {/* ✅ NEW: Transfer to Inventory Button */}
+                        <button
+                          onClick={() => handleOpenTransferModal(item)}
+                          disabled={
+                            !matchingInventory || item.currentQuantity <= 0
+                          }
+                          title={
+                            !matchingInventory
+                              ? "Primero vincula este item con Inventario"
+                              : item.currentQuantity <= 0
+                                ? "Sin stock para transferir"
+                                : "Transferir cantidad al inventario"
+                          }
+                          className={`font-medium text-sm transition-colors ${
+                            !matchingInventory || item.currentQuantity <= 0
+                              ? "text-gray-300 cursor-not-allowed"
+                              : "text-blue-600 hover:text-blue-800"
+                          }`}
+                        >
+                          → Inv
                         </button>
                       </div>
                     </td>
@@ -252,10 +274,19 @@ export default function StorageTable({
         </div>
       )}
 
-      {modalOpen && selectedItem && (
+      {/* Modals */}
+      {addModalOpen && selectedItem && (
         <AddQuantityModal
           item={selectedItem}
-          onClose={handleCloseModal}
+          onClose={handleCloseModals}
+          onSubmitted={() => window.location.reload()}
+        />
+      )}
+
+      {transferModalOpen && selectedItem && (
+        <TransferToInventoryModal
+          item={selectedItem}
+          onClose={handleCloseModals}
           onSubmitted={() => window.location.reload()}
         />
       )}

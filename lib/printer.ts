@@ -27,7 +27,7 @@ export function generateEscPosReceipt(
   // Restaurant name (bold, double size)
   push(Buffer.from([0x1d, 0x21, 0x11])); // GS ! 0x11 - Double height + width
   push(Buffer.from([0x1b, 0x45, 0x01])); // ESC E 1 - Bold ON
-  push(encodeText("Taguchi Restaurant\n"));
+  push(encodeText("Tacuchi Restaurant\n"));
   push(Buffer.from([0x1b, 0x45, 0x00])); // ESC E 0 - Bold OFF
   push(Buffer.from([0x1d, 0x21, 0x00])); // GS ! 0x00 - Normal size
 

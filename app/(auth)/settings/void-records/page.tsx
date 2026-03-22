@@ -13,6 +13,11 @@ interface VoidMetadata {
     category?: string | null;
     station?: string;
   };
+  items?: Array<{
+    name: string;
+    quantity: number;
+    price: string;
+  }>;
   order?: {
     id: string;
     checkId: string;
@@ -589,17 +594,27 @@ function getVoidDetailsSync(record: any): string {
       const tableNumbers = metadata.tables
         .map((t: any) => `${t.number}${t.name ? ` (${t.name})` : ""}`)
         .join(", ");
+
       const totalFormatted = `S/${parseFloat(metadata.check.total || "0").toFixed(2)}`;
-      const itemsSummary =
-        metadata.itemsSummary || `${metadata.check.itemCount} items`;
-      const waiterName = metadata.waiterName || "Desconocido";
-      const voidedAt = metadata.voidedAt
-        ? format(new Date(metadata.voidedAt), "HH:mm")
-        : "—";
-      return `Cuenta — Mesas ${tableNumbers}
-• Total: ${totalFormatted}
-• ${itemsSummary}
-• Mesero: ${waiterName} a las ${voidedAt}`.trim();
+
+      // ✅ Build itemsSummary from metadata.items array
+      let itemsSummary = "";
+      if (
+        metadata.items &&
+        Array.isArray(metadata.items) &&
+        metadata.items.length > 0
+      ) {
+        const displayItems = metadata.items
+          .slice(0, 4)
+          .map((i: any) => `${i.name} ×${i.quantity}`);
+        const remaining = metadata.items.length - 4;
+        itemsSummary = `${displayItems.join(", ")}${remaining > 0 ? `... y ${remaining} más` : ""}`;
+      } else {
+        itemsSummary = `${metadata.check.itemCount || 0} items`;
+      }
+
+      // ✅ Single-line format matching voidOrderItem style
+      return `Cuenta — Mesas ${tableNumbers} • ${itemsSummary} • ${totalFormatted}`;
     }
 
     return "Detalles no disponibles (registro anterior)";

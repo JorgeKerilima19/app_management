@@ -284,6 +284,9 @@ model DailySummary {
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
 
+  turnData   Json?
+  activeTurn String?
+
   @@unique([date])
   @@index([date])
 }
@@ -403,7 +406,6 @@ model DailyRequirement {
 
 enum RequirementStatus {
   PENDING
-  APPROVED
   PARTIALLY_DELIVERED
   DELIVERED
   CANCELLED

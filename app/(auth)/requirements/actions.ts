@@ -1,4 +1,3 @@
-// app/(auth)/requirements/actions.ts
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -27,6 +26,7 @@ export type RequirementItem = {
 export type DailyRequirement = {
   id: string;
   date: Date;
+  // ✅ Include ALL statuses from Prisma enum
   status:
     | "PENDING"
     | "APPROVED"
@@ -44,13 +44,9 @@ export type DailyRequirement = {
 };
 
 export type RequirementFormData = {
-  date: string; // YYYY-MM-DD
+  date: string;
   notes: string;
-  items: Array<{
-    inventoryItemId: string;
-    quantity: number;
-    notes: string;
-  }>;
+  items: Array<{ inventoryItemId: string; quantity: number; notes: string }>;
 };
 
 export type DeliverFormData = {
@@ -63,31 +59,6 @@ function toNumber(value: any): number | null {
   if (typeof value === "number") return value;
   if (value && typeof value.toNumber === "function") return value.toNumber();
   return parseFloat(value.toString());
-}
-
-// ✅ Helper: Parse date string to America/Lima timezone (noon to avoid DST issues)
-function parseDateToLima(dateStr: string): Date {
-  const [year, month, day] = dateStr.split("-").map(Number);
-  // Set to noon in Lima time to avoid timezone boundary issues
-  return new Date(year, month - 1, day, 12, 0, 0, 0);
-}
-
-// ✅ Helper: Get start of day in America/Lima (00:00:00)
-function getStartOfDayLima(date: Date): Date {
-  const limaDate = new Date(
-    date.toLocaleString("en-US", { timeZone: "America/Lima" }),
-  );
-  limaDate.setHours(0, 0, 0, 0);
-  return limaDate;
-}
-
-// ✅ Helper: Get end of day in America/Lima (23:59:59)
-function getEndOfDayLima(date: Date): Date {
-  const limaDate = new Date(
-    date.toLocaleString("en-US", { timeZone: "America/Lima" }),
-  );
-  limaDate.setHours(23, 59, 59, 999);
-  return limaDate;
 }
 
 export async function getInventoryItemsForRequirements(): Promise<
@@ -114,6 +85,7 @@ export async function getInventoryItemsForRequirements(): Promise<
   }));
 }
 
+// ✅ Create new requirement OR return existing one (allows adding items later)
 export async function createDailyRequirement(formData: FormData) {
   const user = await getCurrentUser();
   if (!user || !["CAJERO", "COCINERO", "OWNER", "ADMIN"].includes(user.role)) {
@@ -125,19 +97,14 @@ export async function createDailyRequirement(formData: FormData) {
 
   if (!dateStr) throw new Error("Fecha es requerida");
 
-  // ✅ Parse date with Lima timezone
-  const date = parseDateToLima(dateStr);
+  // Parse date for @db.Date field (Prisma truncates time)
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day)); // midnight UTC
 
-  // ✅ Check for existing requirement on this date (Lima timezone)
-  const startOfDay = getStartOfDayLima(date);
-  const endOfDay = getEndOfDayLima(date);
-
+  // ✅ Check for existing requirement on this date
   const existingRequirement = await prisma.dailyRequirement.findFirst({
     where: {
-      date: {
-        gte: startOfDay,
-        lt: endOfDay,
-      },
+      date: { equals: date },
     },
   });
 
@@ -150,6 +117,7 @@ export async function createDailyRequirement(formData: FormData) {
     };
   }
 
+  // Create new requirement (without items - they're added separately)
   const requirement = await prisma.dailyRequirement.create({
     data: {
       date,
@@ -168,6 +136,7 @@ export async function createDailyRequirement(formData: FormData) {
   };
 }
 
+// ✅ Add item to existing requirement (works for ANY status)
 export async function addRequirementItem(formData: FormData) {
   const user = await getCurrentUser();
   if (!user || !["CAJERO", "COCINERO", "OWNER", "ADMIN"].includes(user.role)) {
@@ -196,9 +165,7 @@ export async function addRequirementItem(formData: FormData) {
   if (!inventoryItem) throw new Error("Item de inventario no encontrado");
   if (!requirement) throw new Error("Requerimiento no encontrado");
 
-  // ✅ REMOVED: Status check - allow adding items to ANY requirement status
-  // This allows cashiers to add items even after approval (common for nightly adjustments)
-
+  // ✅ Check for existing item (same requirement + inventory item)
   const existingItem = await prisma.requirementItem.findUnique({
     where: {
       requirementId_inventoryItemId: { requirementId, inventoryItemId },
@@ -206,6 +173,7 @@ export async function addRequirementItem(formData: FormData) {
   });
 
   if (existingItem) {
+    // ✅ Update: increment quantityRequested
     await prisma.requirementItem.update({
       where: {
         requirementId_inventoryItemId: { requirementId, inventoryItemId },
@@ -216,6 +184,7 @@ export async function addRequirementItem(formData: FormData) {
       },
     });
   } else {
+    // ✅ Create new item
     await prisma.requirementItem.create({
       data: {
         requirementId,
@@ -249,7 +218,6 @@ export async function removeRequirementItem(formData: FormData) {
 
   await prisma.requirementItem.delete({ where: { id: requirementItemId } });
 
-  // If this was the last item, optionally delete the empty requirement
   const remainingItems = await prisma.requirementItem.count({
     where: { requirementId: requirementItem.requirementId },
   });
@@ -265,32 +233,28 @@ export async function removeRequirementItem(formData: FormData) {
   return { success: true };
 }
 
+// ✅ Fetch requirements: 36-hour UTC window, proper @db.Date handling
 export async function getDailyRequirements(filters?: {
-  startDate?: Date;
-  endDate?: Date;
-  status?: string[];
+  hoursWindow?: number;
+  // status filter removed - we show everything
 }): Promise<DailyRequirement[]> {
-  const whereClause: any = {
-    status: { not: "CANCELLED" },
-  };
+  const whereClause: any = {};
 
-  if (filters?.startDate) {
-    // ✅ Convert to Lima timezone start of day
-    whereClause.date = {
-      ...whereClause.date,
-      gte: getStartOfDayLima(filters.startDate),
+  if (filters?.hoursWindow) {
+    // ✅ Simple: fetch by createdAt (timestamp) instead of date (@db.Date)
+    // createdAt is DateTime (with time), so range queries work reliably
+    const now = new Date();
+    const startTime = new Date(
+      now.getTime() - filters.hoursWindow * 60 * 60 * 1000,
+    );
+
+    whereClause.createdAt = {
+      gte: startTime,
+      lte: now,
     };
   }
-  if (filters?.endDate) {
-    // ✅ Convert to Lima timezone end of day
-    whereClause.date = {
-      ...whereClause.date,
-      lte: getEndOfDayLima(filters.endDate),
-    };
-  }
-  if (filters?.status?.length) {
-    whereClause.status = { in: filters.status };
-  }
+
+  // ✅ NO status filter - show PENDING, APPROVED, DELIVERED, CANCELLED, all of them
 
   const requirements = await prisma.dailyRequirement.findMany({
     where: whereClause,
@@ -314,7 +278,7 @@ export async function getDailyRequirements(filters?: {
         orderBy: { inventoryItem: { name: "asc" } },
       },
     },
-    orderBy: { date: "asc" },
+    orderBy: { createdAt: "desc" },
   });
 
   return requirements.map((req) => ({
@@ -370,6 +334,7 @@ export async function deliverRequirementItem(formData: FormData) {
       throw new Error("Ya se entregó la cantidad completa");
     }
 
+    // Deduct from storage if available
     const storageItem = await tx.storageItem.findFirst({
       where: {
         name: {
@@ -399,11 +364,13 @@ export async function deliverRequirementItem(formData: FormData) {
       });
     }
 
+    // Add to inventory
     await tx.inventoryItem.update({
       where: { id: requirementItem.inventoryItemId },
       data: { currentQuantity: { increment: deliverQuantity } },
     });
 
+    // Update requirement item
     await tx.requirementItem.update({
       where: { id: requirementItemId },
       data: { quantityDelivered: { increment: deliverQuantity } },
@@ -412,17 +379,29 @@ export async function deliverRequirementItem(formData: FormData) {
     const allItems = await tx.requirementItem.findMany({
       where: { requirementId: requirementItem.requirementId },
     });
-
+    const EPSILON = 0.001;
     const allFullyDelivered = allItems.every(
-      (item) => item.quantityDelivered >= item.quantityRequested,
+      (item) => item.quantityDelivered >= item.quantityRequested - EPSILON,
     );
+
+    const newStatus = allFullyDelivered ? "DELIVERED" : "PARTIALLY_DELIVERED";
 
     await tx.dailyRequirement.update({
       where: { id: requirementItem.requirementId },
       data: {
-        status: allFullyDelivered ? "DELIVERED" : "PARTIALLY_DELIVERED",
-        approvedById: user.id,
+        status: newStatus,
+        approvedById: user.id, // Track who delivered
       },
+    });
+
+    // ✅ Debug log (visible in server terminal)
+    console.log("📦 Delivery update:", {
+      requirementId: requirementItem.requirementId,
+      totalItems: allItems.length,
+      deliveredItems: allItems.filter(
+        (i) => i.quantityDelivered >= i.quantityRequested - EPSILON,
+      ).length,
+      newStatus,
     });
   });
 
@@ -452,40 +431,6 @@ export async function cancelRequirement(formData: FormData) {
   await prisma.dailyRequirement.update({
     where: { id: requirementId },
     data: { status: "CANCELLED" },
-  });
-
-  revalidatePath("/requirements");
-  return { success: true };
-}
-
-export async function approveRequirement(formData: FormData) {
-  const user = await getCurrentUser();
-  if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
-    throw new Error("No autorizado");
-  }
-
-  const requirementId = formData.get("requirementId") as string;
-  if (!requirementId) throw new Error("ID requerido");
-
-  const requirement = await prisma.dailyRequirement.findUnique({
-    where: { id: requirementId },
-    include: { items: true },
-  });
-
-  if (!requirement) throw new Error("Requerimiento no encontrado");
-  if (requirement.status !== "PENDING") {
-    throw new Error("Solo se pueden aprobar requerimientos pendientes");
-  }
-  if (requirement.items.length === 0) {
-    throw new Error("No se puede aprobar un requerimiento sin items");
-  }
-
-  await prisma.dailyRequirement.update({
-    where: { id: requirementId },
-    data: {
-      status: "APPROVED",
-      approvedById: user.id,
-    },
   });
 
   revalidatePath("/requirements");

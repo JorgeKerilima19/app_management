@@ -185,14 +185,106 @@ export async function voidOrder(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) throw new Error("No autorizado");
 
+  // ✅ Fetch check with tableIds and total BEFORE voiding
   const check = await prisma.check.findUnique({
     where: { id: checkId },
-    select: { tableIds: true, status: true },
+    select: { tableIds: true, status: true, total: true, openedById: true },
   });
 
   if (!check || check.status === "CLOSED" || check.status === "VOIDED") {
     throw new Error("La cuenta no se puede anular");
   }
+
+  // ✅ Fetch table numbers and metadata (while relation still exists)
+  let tableNumbers = "N/A";
+  let tableMetadata: Array<{ number: number; name: string | null }> = [];
+  try {
+    const tableIdArray = JSON.parse(check.tableIds) as string[];
+    if (tableIdArray.length > 0) {
+      const tables = await prisma.table.findMany({
+        where: { id: { in: tableIdArray } },
+        select: { id: true, number: true, name: true },
+      });
+      tableNumbers = tables
+        .map((t) => `${t.number}${t.name ? ` (${t.name})` : ""}`)
+        .join(", ");
+      tableMetadata = tables.map((t) => ({
+        number: t.number,
+        name: t.name,
+      }));
+    }
+  } catch (error) {
+    console.error("Error fetching tables for void:", error);
+    tableNumbers = "N/A";
+  }
+
+  // ✅ Fetch waiter info (while relation still exists)
+  let waiterName = "Desconocido";
+  try {
+    if (check.openedById) {
+      const waiter = await prisma.user.findUnique({
+        where: { id: check.openedById },
+        select: { name: true },
+      });
+      if (waiter?.name) waiterName = waiter.name;
+    }
+  } catch {}
+
+  // ✅ Fetch order items for DETAILED item summary (like voidOrderItem does)
+  let itemSummary = "";
+  let itemCount = 0;
+  let itemMetadata: Array<{ name: string; quantity: number; price: string }> =
+    [];
+  let totalFormatted = "S/0.00";
+
+  try {
+    const orders = await prisma.order.findMany({
+      where: { checkId },
+      include: {
+        items: {
+          include: {
+            menuItem: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    // Build flat list of all items with quantities
+    const allItems: Array<{ name: string; quantity: number; price: string }> =
+      [];
+    orders.forEach((order) => {
+      order.items.forEach((item) => {
+        allItems.push({
+          name: item.menuItem?.name || "Ítem desconocido",
+          quantity: item.quantity,
+          price: item.priceAtOrder?.toString() || "0",
+        });
+        itemCount += item.quantity;
+      });
+    });
+
+    if (allItems.length > 0) {
+      // ✅ Build concise summary: first 3-4 items with quantities (like voidOrderItem)
+      // Format: "Chaufa de pollo ×2, Coca-Cola ×3... y 2 más"
+      const displayItems = allItems
+        .slice(0, 4)
+        .map((i) => `${i.name} ×${i.quantity}`);
+      const remaining = allItems.length - 4;
+      itemSummary = `${displayItems.join(", ")}${remaining > 0 ? `... y ${remaining} más` : ""}`;
+
+      // Store first 10 items for metadata
+      itemMetadata = allItems.slice(0, 10);
+    }
+
+    totalFormatted = check.total
+      ? `S/${Number(check.total).toFixed(2)}`
+      : "S/0.00";
+  } catch (error) {
+    console.error("Error fetching items for void:", error);
+    itemSummary = "Ítems no disponibles";
+  }
+
+  const richNote = `Cuenta — Mesas ${tableNumbers} • ${itemSummary || "Sin items"} • ${totalFormatted}`;
 
   await prisma.voidRecord.create({
     data: {
@@ -200,6 +292,21 @@ export async function voidOrder(formData: FormData) {
       targetId: checkId,
       reason,
       voidedById: user.id,
+      note: richNote,
+      metadata: {
+        check: {
+          id: checkId,
+          total: check.total?.toString() || "0",
+          itemCount,
+          openedById: check.openedById,
+        },
+        waiter: {
+          name: waiterName,
+        },
+        tables: tableMetadata,
+        items: itemMetadata,
+        voidedAt: new Date().toISOString(),
+      },
     },
   });
 
@@ -208,16 +315,24 @@ export async function voidOrder(formData: FormData) {
     data: { status: "VOIDED", closedAt: new Date() },
   });
 
-  const tableIds = JSON.parse(check.tableIds);
-  await prisma.table.updateMany({
-    where: { id: { in: tableIds } },
-    data: { status: "AVAILABLE", currentCheckId: null },
-  });
+  try {
+    const tableIds = JSON.parse(check.tableIds) as string[];
+    await prisma.table.updateMany({
+      where: { id: { in: tableIds } },
+      data: { status: "AVAILABLE", currentCheckId: null },
+    });
+  } catch (error) {
+    console.error("Error freeing tables after void:", error);
+  }
 
+  // ✅ Revalidate all relevant paths
   revalidatePath("/cashier");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/close");
+  revalidatePath("/settings/reports");
+  revalidatePath("/settings/void-records");
 }
 
-// ✅ FIXED: Secure, validated payment creation
 export async function closeCheckAction(formData: FormData) {
   const checkId = formData.get("checkId") as string;
   const paymentMethod = formData.get("paymentMethod") as string;
