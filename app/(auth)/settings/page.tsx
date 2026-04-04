@@ -33,7 +33,10 @@ export default async function SettingsPage() {
     <div className="space-y-8 bg-white">
       <h1 className="text-2xl font-bold text-violet-500">Ajustes</h1>
 
-      <RequirementsCard requirements={requirements} userRole={user.role} />
+      <RequirementsCard
+        requirements={requirements}
+        userRole={user?.role || ""}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition hover:border-violet-300 bg-white">

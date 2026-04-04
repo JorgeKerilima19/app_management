@@ -20,7 +20,6 @@ export function TableOrderManager({
   const printContentRef = useRef<HTMLDivElement>(null);
   const cartSectionRef = useRef<HTMLDivElement>(null);
 
-  // 🛒 Client-side cart state
   const [cartItems, setCartItems] = useState<
     Array<{
       menuItemId: string;
@@ -32,7 +31,6 @@ export function TableOrderManager({
     }>
   >([]);
 
-  // 🛒 Cart helper functions
   const addToCart = useCallback((menuItem: any) => {
     setCartItems((prev) => {
       const existing = prev.find((item) => item.menuItemId === menuItem.id);
@@ -56,7 +54,6 @@ export function TableOrderManager({
       ];
     });
 
-    // 📜 Scroll to top (cart section) smoothly
     setTimeout(() => {
       cartSectionRef.current?.scrollIntoView({
         behavior: "smooth",
@@ -87,7 +84,6 @@ export function TableOrderManager({
     );
   };
 
-  // 🛒 Submit order to server + auto-print
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (cartItems.length === 0 || isSending) return;
@@ -124,10 +120,10 @@ export function TableOrderManager({
       <div className="space-y-6">
         <div ref={cartSectionRef} id="cart-section" className="scroll-mt-4">
           {cartItems.length > 0 && (
-            <div className="bg-white border border-violet-200 rounded-xl p-4 shadow-sm">
+            <div className="bg-gray-900 border border-violet-400 rounded-xl p-4 shadow-sm">
               <h2 className="text-lg font-semibold mb-3 text-violet-600 flex items-center gap-2">
                 Orden actual
-                <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                <span className="text-xs font-normal text-white bg-violet-500 px-2 py-0.5 rounded-full">
                   {cartItems.reduce((sum, i) => sum + i.quantity, 0)} ítems
                 </span>
               </h2>
@@ -138,9 +134,9 @@ export function TableOrderManager({
                   return (
                     <div
                       key={item.menuItemId}
-                      className="flex flex-col sm:flex-row sm:items-center gap-2 bg-gray-50 p-3 rounded-lg"
+                      className="flex flex-col sm:flex-row sm:items-center gap-2 bg-gray-700 p-3 rounded-lg"
                     >
-                      <div className="font-medium flex-1 text-black min-w-0">
+                      <div className="font-medium flex-1 text-white min-w-0">
                         <span className="mr-1">{stationLabel}</span>
                         {item.name}
                       </div>
@@ -181,7 +177,7 @@ export function TableOrderManager({
                           onChange={(e) =>
                             updateCartNotes(item.menuItemId, e.target.value)
                           }
-                          className="w-full p-1.5 text-sm border border-gray-200 rounded text-black placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                          className="w-full p-1.5 text-sm border border-gray-200 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-violet-500"
                         />
                       </div>
 
@@ -194,8 +190,8 @@ export function TableOrderManager({
               </div>
 
               <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-200">
-                <span className="font-semibold text-gray-700">Subtotal:</span>
-                <span className="font-bold text-lg text-violet-600">
+                <span className="font-semibold text-gray-100">Subtotal:</span>
+                <span className="font-bold text-lg text-violet-100 bg-violet-500 px-5 border-violet-400 rounded-full">
                   S/ {cartTotal.toFixed(2)}
                 </span>
               </div>
@@ -226,10 +222,10 @@ export function TableOrderManager({
         </div>
 
         {sentOrders.length > 0 && (
-          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-            <h2 className="text-lg font-semibold mb-3 text-gray-700 flex items-center gap-2">
+          <div className="bg-gray-900 border border-gray-500 rounded-xl p-4">
+            <h2 className="text-lg font-semibold mb-3 text-gray-100 flex items-center gap-2">
               Órdenes enviadas
-              <span className="text-lg font-bold text-gray-900 bg-gray-200 px-2 py-0.5 rounded-full">
+              <span className="text-lg font-bold text-gray-100 bg-gray-500 px-2 py-0.5 rounded-full">
                 {sentOrders.length}
               </span>
             </h2>
@@ -241,20 +237,20 @@ export function TableOrderManager({
                   return (
                     <div
                       key={item.id}
-                      className="flex justify-between bg-white p-2.5 rounded border text-sm"
+                      className="flex justify-between bg-gray-700 p-2.5 rounded text-sm"
                     >
                       <div className="min-w-0">
-                        <p className="text-lg text-gray-800 truncate">
+                        <p className="text-lg text-gray-300 truncate">
                           {stationIcon} {item.menuItem.name}{" "}
                           <span>x{item.quantity} </span>
                         </p>
                         {item.notes && (
-                          <p className="text-xs text-gray-500 italic truncate">
+                          <p className="text-xs text-gray-200 italic truncate">
                             "{item.notes}"
                           </p>
                         )}
                       </div>
-                      <p className="text-lg font-bold text-gray-700 whitespace-nowrap ml-2">
+                      <p className="text-lg font-bold text-gray-100 whitespace-nowrap ml-2">
                         S/ {(item.priceAtOrder * item.quantity).toFixed(2)}
                       </p>
                     </div>
@@ -265,17 +261,17 @@ export function TableOrderManager({
           </div>
         )}
 
-        <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
+        <div className="bg-gray-900 border border-violet-500 rounded-xl p-4">
           <div className="flex justify-between items-center">
-            <p className="text-lg font-bold text-gray-800">Total acumulado:</p>
-            <p className="text-2xl font-extrabold text-violet-700">
+            <p className="text-lg font-bold text-gray-100">Total acumulado:</p>
+            <p className="text-2xl font-extrabold text-white px-10 py-1 bg-violet-500 rounded-full">
               S/ {currentCheck.total.toFixed(2)}
             </p>
           </div>
         </div>
 
         <div className="mt-6">
-          <h2 className="text-xl text-gray-900 font-semibold mb-4 flex items-center gap-2">
+          <h2 className="text-2xl text-gray-100 font-bold mb-4 flex items-center gap-2">
             Agregar ítems al pedido
           </h2>
           <MenuFilterClient

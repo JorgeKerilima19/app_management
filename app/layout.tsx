@@ -19,16 +19,16 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-white min-h-screen`}>
+      <body className={`${inter.className} bg-gray-600 min-h-screen`}>
         {showSidebar ? (
           <div className="flex min-h-screen">
             <AdminSidebar user={user} />
-            <main className="flex-1 p-4 md:p-6 bg-white pt-16 md:pt-6 md:mt-0 mt-8">
+            <main className="flex-1 p-4 md:p-6 bg-gray-900 pt-16 md:pt-6 md:mt-0 mt-8">
               {children}
             </main>
           </div>
         ) : (
-          <main className="p-0 md:p-4 bg-white min-h-screen">{children}</main>
+          <main className="p-0 md:p-4 bg-gray-900 min-h-screen">{children}</main>
         )}
       </body>
     </html>

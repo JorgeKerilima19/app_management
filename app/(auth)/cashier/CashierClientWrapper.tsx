@@ -29,9 +29,9 @@ export function CashierClientWrapper({
   }, []);
 
   return (
-    <div className="flex h-screen bg-white">
+    <div className="flex h-screen bg-gray-900">
       <div className="flex-1 p-4 overflow-auto">
-        <h1 className="text-2xl font-bold text-violet-600 mb-6 text-center">
+        <h1 className="text-2xl font-bold text-violet-500 mb-6 text-center">
           Vista Cajero
         </h1>
         <TableMap

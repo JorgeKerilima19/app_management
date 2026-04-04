@@ -23,11 +23,11 @@ export default async function TablesPage() {
     if (!table) return null;
 
     const is8Seater = table.capacity === 8;
-    const sizeClasses = is8Seater ? "w-32 h-20" : "w-20 h-20";
+    const sizeClasses = is8Seater ? "w-20 h-12" : "w-12 h-12";
 
     const statusClasses =
       table.status === "AVAILABLE"
-        ? "bg-white border-gray-300 text-gray-800 hover:border-violet-400"
+        ? "bg-gray-300 border-gray-300 text-gray-800 hover:border-violet-400"
         : "bg-green-500 border-green-600 text-white hover:bg-green-600";
 
     return (
@@ -51,7 +51,7 @@ export default async function TablesPage() {
   ];
 
   return (
-    <div className="p-4 md:p-6 max-w-6xl mx-auto bg-white min-h-screen">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto bg-gray-800 min-h-screen">
       <div className="flex justify-end mb-4">
         <LogoutButton />
       </div>
@@ -61,7 +61,7 @@ export default async function TablesPage() {
 
       {/* INDOOR */}
       <div className="mb-12">
-        <h2 className="text-xl font-semibold text-center mb-6 text-gray-900">
+        <h2 className="text-xl font-semibold text-center mb-6 text-gray-100">
           Interior
         </h2>
         <div className="flex justify-center gap-3 mb-8">
@@ -73,7 +73,7 @@ export default async function TablesPage() {
                   {row.left[0] ? (
                     renderTable(row.left[0])
                   ) : (
-                    <div className="w-20 h-20" />
+                    <div className="w-12 h-12" />
                   )}
                 </div>
               ))}
@@ -84,7 +84,7 @@ export default async function TablesPage() {
                   {row.left[1] ? (
                     renderTable(row.left[1])
                   ) : (
-                    <div className="w-20 h-20" />
+                    <div className="w-12 h-12" />
                   )}
                 </div>
               ))}
@@ -95,7 +95,7 @@ export default async function TablesPage() {
                   {row.left[2] ? (
                     renderTable(row.left[2])
                   ) : (
-                    <div className="w-20 h-20" />
+                    <div className="w-20 h-12" />
                   )}
                 </div>
               ))}
@@ -119,7 +119,7 @@ export default async function TablesPage() {
 
       {/* OUTDOOR */}
       <div>
-        <h2 className="text-xl font-semibold text-center mb-4 text-gray-900">
+        <h2 className="text-xl font-semibold text-center mb-4 text-gray-100">
           Exterior Patio
         </h2>
         <div className="flex justify-center gap-8">

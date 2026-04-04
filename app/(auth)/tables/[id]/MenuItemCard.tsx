@@ -57,21 +57,20 @@ export function MenuItemCard({
   return (
     <div
       onClick={!isOutOfStock ? () => onAddToCart(menuItem) : undefined}
-      className={`group relative flex flex-col p-3 bg-white rounded border transition shadow-sm ${
+      className={`group relative flex flex-col p-3 bg-gray-700 rounded border transition shadow-sm ${
         isOutOfStock
-          ? "border-gray-200 bg-gray-50 cursor-not-allowed opacity-60"
-          : "border-violet-200 hover:bg-violet-50 hover:border-violet-400 cursor-pointer"
+          ? "border-gray-200 bg-gray-500 cursor-not-allowed opacity-60"
+          : "border-gray-700 hover:bg-violet-50 hover:border-violet-400 cursor-pointer"
       }`}
     >
-      {/* ... rest of your JSX remains the same ... */}
       <div className="flex justify-between items-start">
         <div className="min-w-0">
-          <p className="font-medium text-gray-900 group-hover:text-violet-700 truncate">
+          <p className="font-medium text-gray-200 group-hover:text-violet-700 truncate">
             {menuItem.name}
           </p>
           <p className="text-xs text-gray-500">{menuItem.category.name}</p>
         </div>
-        <span className="text-xs px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 whitespace-nowrap">
+        <span className="text-xs px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 whitespace-nowrap">
           {stationLabel}
         </span>
       </div>
@@ -85,7 +84,7 @@ export function MenuItemCard({
       )}
 
       <div className="flex justify-between items-end mt-2">
-        <p className="font-bold text-violet-600 group-hover:text-violet-800">
+        <p className="font-bold text-violet-200 group-hover:text-violet-800">
           S/ {menuItem.price.toFixed(2)}
         </p>
       </div>

@@ -44,8 +44,8 @@ export default async function DashboardPage() {
       </div>
 
       {!data.dailySummary?.status || data.dailySummary.status === "CLOSED" ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+        <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-xl font-semibold text-gray-100 mb-4">
             Abrir Restaurante
           </h2>
           <form action={handleOpenRestaurant} className="flex gap-4">
@@ -55,7 +55,7 @@ export default async function DashboardPage() {
               step="0.01"
               min="0"
               placeholder="Monto de apertura"
-              className="px-3 py-2 border border-gray-300 rounded text-black bg-white"
+              className="px-3 py-2 border border-gray-300 rounded text-white bg-gray-500"
               required
             />
             <button
@@ -67,9 +67,9 @@ export default async function DashboardPage() {
           </form>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">
+            <h2 className="text-xl font-semibold text-gray-200">
               Restaurante Abierto
             </h2>
             <Link

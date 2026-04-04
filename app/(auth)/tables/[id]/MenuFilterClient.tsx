@@ -55,13 +55,13 @@ export function MenuFilterClient({
 
   return (
     <div>
-      <div className="mb-4 sticky top-0 bg-white pb-2 z-10">
+      <div className="mb-4 sticky top-0 pb-2 z-10">
         <input
           type="text"
           placeholder="Buscar plato o bebida..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full p-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500 text-black placeholder-gray-400"
+          className="w-full p-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500 text-white placeholder-gray-600"
         />
       </div>
 
@@ -120,7 +120,6 @@ export function MenuFilterClient({
         </div>
       )}
 
-      {/* Results counter */}
       <p className="text-xs text-gray-400 mt-4 text-center">
         {filtered.length} ítem{filtered.length !== 1 ? "s" : ""} mostrado
         {filtered.length !== 1 ? "s" : ""}

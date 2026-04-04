@@ -45,8 +45,8 @@ export function TurnManager({
   };
 
   return (
-    <div className="border-t border-gray-200 pt-4">
-      <h3 className="text-lg font-medium text-gray-700 mb-3">Turnos</h3>
+    <div className="border-t border-gray-500 pt-4">
+      <h3 className="text-lg font-medium text-gray-300 mb-3">Turnos</h3>
 
       {activeTurn ? (
         // ✅ Active turn - show close button

@@ -165,7 +165,7 @@ export function TableMap({
   }
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-gray-800 min-h-screen">
       <div className="p-4 max-w-6xl mx-auto">
         <div className="text-center mb-4">
           <button
@@ -193,7 +193,7 @@ export function TableMap({
 
         {/* INDOOR */}
         <div className="mb-12">
-          <h2 className="text-xl font-semibold text-center mb-6 text-gray-900">
+          <h2 className="text-xl font-semibold text-center mb-6 text-gray-100">
             Interior
           </h2>
           <div className="flex justify-center gap-6 mb-8">
@@ -254,7 +254,7 @@ export function TableMap({
 
         {/* OUTDOOR */}
         <div>
-          <h2 className="text-xl font-semibold text-center mb-4 text-gray-900">
+          <h2 className="text-xl font-semibold text-center mb-4 text-gray-100">
             Exterior Patio
           </h2>
           <div className="flex justify-center gap-8">

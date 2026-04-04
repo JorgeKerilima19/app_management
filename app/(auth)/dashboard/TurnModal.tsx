@@ -49,7 +49,7 @@ export function TurnModal({
 
       {isOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+          <div className="bg-gray-700 rounded-xl p-6 w-full max-w-md">
             <h3 className="text-xl font-bold mb-4">
               {mode === "open" ? `Iniciar ${turnName}` : `Cerrar ${turnName}`}
             </h3>
@@ -57,7 +57,7 @@ export function TurnModal({
             <form onSubmit={handleSubmit} className="space-y-4">
               {mode === "open" ? (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-200 mb-1">
                     Efectivo inicial
                   </label>
                   <input
@@ -66,13 +66,13 @@ export function TurnModal({
                     min="0"
                     value={declaredCash}
                     onChange={(e) => setDeclaredCash(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded text-black"
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-white"
                     placeholder="0.00"
                     required
                     autoFocus
                   />
                   {startingCash > 0 && (
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-200 mt-1">
                       Sugerido: S/ {startingCash.toFixed(2)} (cierre anterior)
                     </p>
                   )}
@@ -80,7 +80,7 @@ export function TurnModal({
               ) : (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-100 mb-1">
                       Efectivo declarado
                     </label>
                     <input
@@ -89,20 +89,20 @@ export function TurnModal({
                       min="0"
                       value={declaredCash}
                       onChange={(e) => setDeclaredCash(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded text-black"
+                      className="w-full px-3 py-2 border border-gray-300 rounded text-white"
                       placeholder="0.00"
                       required
                       autoFocus
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-200 mb-1">
                       Notas (opcional)
                     </label>
                     <textarea
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded text-black"
+                      className="w-full px-3 py-2 border border-gray-300 rounded text-white"
                       rows={2}
                       placeholder="Observaciones..."
                     />
@@ -116,7 +116,7 @@ export function TurnModal({
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded text-gray-700"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded text-gray-100"
                   disabled={isPending}
                 >
                   Cancelar

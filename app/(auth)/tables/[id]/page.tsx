@@ -88,7 +88,6 @@ export default async function TablePage({
         item.recipeItems[0].quantityRequired === 1 &&
         !item.recipeItems[0].isOptional;
 
-      // Get inventory stock for simple items only
       const inventoryStock = isSimpleItem
         ? (item.recipeItems[0].inventoryItem?.currentQuantity ?? null)
         : null;
@@ -103,9 +102,8 @@ export default async function TablePage({
         categoryId: item.categoryId,
         category: { name: item.category.name },
         station: item.station,
-        // ✅ Add stock info for UI display (only for simple items)
         inventoryStock: isSimpleItem ? toNumber(inventoryStock) : null,
-        isSimpleItem, // Flag for conditional rendering in UI
+        isSimpleItem,
       };
     });
   }
@@ -134,7 +132,7 @@ export default async function TablePage({
 
   if (table.status === "AVAILABLE") {
     return (
-      <div className="max-w-6xl mx-auto p-4 md:p-6 bg-white min-h-screen">
+      <div className="max-w-6xl mx-auto p-4 md:p-6 bg-gray-900 min-h-screen">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <h1 className="text-2xl font-bold text-violet-500">
             Mesa {table.number}
@@ -143,8 +141,8 @@ export default async function TablePage({
             Disponible
           </span>
         </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
-          <p className="text-gray-700 mb-6 text-lg">
+        <div className="bg-gray-700 border border-gray-200 rounded-xl p-8 text-center">
+          <p className="text-gray-100 mb-6 text-lg">
             Abre la mesa cuando el cliente esté listo para ordenar
           </p>
           <form action={openTableAction}>
@@ -168,7 +166,7 @@ export default async function TablePage({
 
   if (table.status !== "OCCUPIED" || !serializedCheck) {
     return (
-      <div className="max-w-6xl mx-auto p-4 md:p-6 bg-white min-h-screen">
+      <div className="max-w-6xl mx-auto p-4 md:p-6 bg-gray-800 min-h-screen">
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
           <p className="text-yellow-800 text-lg">
             Mesa está <strong>{table.status.toLowerCase()}</strong>. Por favor
@@ -185,7 +183,7 @@ export default async function TablePage({
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-4 md:p-6 bg-white min-h-screen">
+    <div className="max-w-6xl mx-auto p-4 md:p-6 bg-gray-900 min-h-screen">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold text-violet-500">
           Mesa {table.number}

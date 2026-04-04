@@ -13,12 +13,12 @@ export function RecentActivity({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Recent Orders */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">
+      <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-600 p-6">
+        <h3 className="text-lg font-semibold text-gray-100 mb-4">
           Últimos Pedidos
         </h3>
         {recentOrders.length === 0 ? (
-          <p className="text-gray-500">Sin pedidos recientes</p>
+          <p className="text-gray-200">Sin pedidos recientes</p>
         ) : (
           <div className="space-y-3">
             {recentOrders.map((order) => (
@@ -27,10 +27,10 @@ export function RecentActivity({
                 className="flex justify-between items-start text-sm py-2 border-b border-gray-100"
               >
                 <div className="flex-1">
-                  <span className="font-medium text-gray-900">
+                  <span className="font-medium text-gray-100">
                     Mesa {order.tableName}
                   </span>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-200 mt-1">
                     {order.firstItemName || "Sin items"}
                   </p>
                 </div>
@@ -41,12 +41,12 @@ export function RecentActivity({
       </div>
 
       {/* Recent Voids */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">
+      <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-600 p-6">
+        <h3 className="text-lg font-semibold text-gray-200 mb-4">
           Anulaciones Recientes
         </h3>
         {recentVoids.length === 0 ? (
-          <p className="text-gray-500">Sin anulaciones recientes</p>
+          <p className="text-gray-200">Sin anulaciones recientes</p>
         ) : (
           <div className="space-y-3">
             {recentVoids.map((voidRecord) => (
@@ -55,7 +55,7 @@ export function RecentActivity({
                 className="flex justify-between items-start text-sm py-2 border-b border-gray-100"
               >
                 <div className="flex-1">
-                  <span className="font-medium text-gray-900">
+                  <span className="font-medium text-gray-100">
                     {voidRecord.targetDetails || "Desconocido"}
                   </span>
                   <p className="text-xs text-gray-500 mt-1">

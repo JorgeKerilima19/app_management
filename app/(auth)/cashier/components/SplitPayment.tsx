@@ -59,10 +59,10 @@ export function SplitPayment({
 
   return (
     <div className="mb-6">
-      <h3 className="font-medium mb-3 text-gray-800">Separar cuenta</h3>
+      <h3 className="font-medium mb-3 text-gray-100">Separar cuenta</h3>
 
       {unassignedItems.length > 0 && (
-        <div className="mb-4 p-3 bg-yellow-50 rounded">
+        <div className="mb-4 p-3 bg-violet-500 rounded">
           <div className="font-bold text-sm mb-1">
             Items Restantes (S/ {unassignedTotal.toFixed(2)})
           </div>
@@ -71,7 +71,7 @@ export function SplitPayment({
               key={item.id}
               draggable
               onDragStart={(e) => handleDragStart(e, item.id)}
-              className="text-sm bg-white p-2 rounded mb-1 cursor-move border border-dashed border-gray-300"
+              className="text-sm bg-violet-400 p-2 rounded mb-1 cursor-move border border-dashed border-gray-300"
             >
               {item.menuItem.name} x{item.quantity} — S/
               {(item.priceAtOrder * item.quantity).toFixed(2)}
@@ -95,7 +95,7 @@ export function SplitPayment({
             <div className="font-bold mb-1">Persona {idx + 1}</div>
             <div className="space-y-1">
               {person.items.map((item) => (
-                <div key={item.id} className="text-sm bg-gray-100 p-1 rounded">
+                <div key={item.id} className="text-sm bg-violet-500 p-1 rounded">
                   {item.menuItem.name} x{item.quantity} — S/
                   {(item.priceAtOrder * item.quantity).toFixed(2)}
                 </div>

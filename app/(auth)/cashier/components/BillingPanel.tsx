@@ -123,10 +123,10 @@ function VoidOrderModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg w-96">
-        <h3 className="font-bold text-lg mb-2">Anular toda la orden</h3>
-        <p className="text-sm text-gray-600 mb-3">
+    <div className="fixed inset-0 bg-gray-600/50 flex items-center justify-center z-50">
+      <div className="bg-gray-800 p-6 rounded-lg w-96">
+        <h3 className="font-bold text-lg mb-2 text-white">Anular toda la orden</h3>
+        <p className="text-sm text-gray-200 mb-3">
           Mesa {tableNumber} se liberará. Esto no se puede deshacer
         </p>
         <label className="block text-sm mb-1">Razón (obligatorio):</label>
@@ -136,7 +136,7 @@ function VoidOrderModal({
             setReason(e.target.value);
             setError("");
           }}
-          className="w-full p-2 border border-gray-300 rounded text-black"
+          className="w-full p-2 border border-gray-300 rounded text-white"
           rows={3}
           placeholder="ejm., Eran invitados"
           autoFocus
@@ -146,7 +146,7 @@ function VoidOrderModal({
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 py-2 bg-gray-200 rounded"
+            className="flex-1 py-2 bg-gray-200 rounded text-black"
           >
             Cancelar
           </button>
@@ -210,7 +210,7 @@ export function BillingPanel({
 
   if (!selectedTableId || !selectedTable?.currentCheck) {
     return (
-      <div className="w-96 bg-white shadow-lg p-6 text-center text-gray-500">
+      <div className="w-96 bg-gray-700 shadow-lg p-6 text-center text-gray-500">
         Selecciona una mesa para ver su orden
       </div>
     );
@@ -349,14 +349,14 @@ export function BillingPanel({
         />
       )}
 
-      <div className="w-96 bg-white shadow-lg p-6 overflow-y-auto">
+      <div className="w-96 bg-gray-700 shadow-lg p-6 overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-violet-600">
+          <h2 className="text-xl font-bold text-violet-500">
             Mesa {selectedTable.number} ({selectedTable.name || ""})
           </h2>
           <button
             onClick={onDismiss}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-200 hover:text-gray-100"
           >
             ✕
           </button>
@@ -377,10 +377,10 @@ export function BillingPanel({
         </button>
 
         <div className="mb-6">
-          <h3 className="font-semibold mb-2 text-gray-800">Órden</h3>
+          <h3 className="font-semibold mb-2 text-gray-200">Órden</h3>
           {groupedItems.map((group) => (
             <div key={group.name} className="mb-3">
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
+              <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">
                 {group.name}
               </div>
               {group.items.map((item) => (
@@ -391,11 +391,11 @@ export function BillingPanel({
                   <span>
                     {item.menuItem.name} x{item.quantity}
                     {item.notes && (
-                      <span className="text-xs italic"> — "{item.notes}"</span>
+                      <span className="text-xs text-white italic"> — "{item.notes}"</span>
                     )}
                   </span>
                   <div className="flex gap-2">
-                    <span className="text-gray-800">
+                    <span className="text-gray-100">
                       S/ {(item.priceAtOrder * item.quantity).toFixed(2)}
                     </span>
                     <button
@@ -411,7 +411,7 @@ export function BillingPanel({
           ))}
         </div>
 
-        <div className="text-lg font-bold mb-6 text-right text-gray-900">
+        <div className="text-lg font-bold mb-6 text-right text-gray-50">
           Total: S/ {check.total.toFixed(2)}
         </div>
 
@@ -433,13 +433,12 @@ export function BillingPanel({
         {canPay && (
           <>
             <div className="mb-4">
-              <label className="block font-medium mb-2 text-gray-800">
+              <label className="block font-medium mb-2 text-gray-100">
                 Método de pago
               </label>
               <div className="space-y-2">
                 {(["CASH", "MOBILE_PAY", "MIXED"] as const).map((method) => (
-                  <label key={method} className="flex items-center">
-                    {/* ✅ Updated onChange handler */}
+                  <label key={method} className="flex items-center text-gray-100">
                     <input
                       type="radio"
                       name="payment"
@@ -459,14 +458,14 @@ export function BillingPanel({
 
             {(paymentMethod === "CASH" || paymentMethod === "MIXED") && (
               <div className="mb-3">
-                <label className="block text-sm mb-1 text-gray-700">
+                <label className="block text-sm mb-1 text-gray-100">
                   Monto en efectivo
                 </label>
                 <input
                   type="number"
                   value={cashAmount}
                   onChange={(e) => setCashAmount(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded text-black"
+                  className="w-full p-2 border border-gray-300 rounded text-white"
                   step="0.01"
                 />
               </div>
@@ -474,14 +473,14 @@ export function BillingPanel({
 
             {(paymentMethod === "MOBILE_PAY" || paymentMethod === "MIXED") && (
               <div className="mb-6">
-                <label className="block text-sm mb-1 text-gray-700">
+                <label className="block text-sm mb-1 text-white">
                   Monto en Yape
                 </label>
                 <input
                   type="number"
                   value={yapeAmount}
                   onChange={(e) => setYapeAmount(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded text-black"
+                  className="w-full p-2 border border-gray-300 rounded text-white"
                   step="0.01"
                 />
               </div>
@@ -489,14 +488,14 @@ export function BillingPanel({
 
             {paymentMethod === "CASH" && (
               <div className="mb-4">
-                <label className="block text-sm mb-1 text-gray-700">
+                <label className="block text-sm mb-1 text-white">
                   Monto recibido
                 </label>
                 <input
                   type="number"
                   value={receivedAmount}
                   onChange={(e) => setReceivedAmount(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded text-black"
+                  className="w-full p-2 border border-gray-300 rounded text-white"
                   step="0.01"
                   placeholder="Ingrese monto recibido"
                 />
