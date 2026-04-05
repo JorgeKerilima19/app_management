@@ -137,13 +137,13 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
   if (requirements.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+    <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-700 p-6">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">
+        <h2 className="text-lg font-semibold text-violet-400">
           Requerimientos de Cocina
         </h2>
         {canManage && (
-          <span className="text-xs text-gray-500">Panel de Administración</span>
+          <span className="text-xs text-gray-200">Panel de Administración</span>
         )}
       </div>
 
@@ -151,11 +151,9 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
         {requirements.map((req) => {
           const normalizedStatus = req.status?.toUpperCase?.() || req.status;
 
-          // ✅ CORRECTO: Se puede cancelar solo si está PENDING
           const isPending = normalizedStatus === "PENDING";
           const canCancelReq = isPending && canManage;
 
-          // ✅ CORRECTO: Se puede entregar si NO está DELIVERED o CANCELLED
           const canDeliverItems =
             canManage &&
             normalizedStatus !== "DELIVERED" &&
@@ -167,12 +165,11 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
           );
 
           return (
-            <div key={req.id} className="border border-gray-200 rounded-lg p-4">
-              {/* Header */}
+            <div key={req.id} className="border border-gray-200 rounded-lg p-4 bg-gray-800">
               <div className="flex flex-wrap justify-between items-start gap-3 mb-3">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-gray-900">
+                    <span className="font-medium text-gray-100">
                       {formatDateLima(req.date)}
                     </span>
                     {getStatusBadge(req.status)}
@@ -185,7 +182,6 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
                   )}
                 </div>
 
-                {/* Requirement-level Actions */}
                 {canCancelReq && (
                   <button
                     onClick={() => handleCancel(req.id)}
@@ -230,9 +226,7 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
                         )}
                       </div>
 
-                      {/* Item Actions */}
                       <div className="flex items-center gap-2 mt-2 sm:mt-0">
-                        {/* ✅ Deliver Button - Shows for PENDING, PARTIALLY_DELIVERED */}
                         {canDeliverItems && !isFullyDelivered ? (
                           isDelivering ? (
                             <div className="flex items-center gap-2">
@@ -295,7 +289,6 @@ export default function RequirementsCard({ requirements, userRole }: Props) {
                           </span>
                         )}
 
-                        {/* ✅ DELETE ITEM BUTTON - Only for OWNER/ADMIN, when not fully delivered */}
                         {canManage &&
                         !isFullyDelivered &&
                         normalizedStatus !== "CANCELLED" ? (

@@ -40,8 +40,8 @@ export function ItemsSold({
   const hasPrevPage = currentPage > 1;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6">
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">
+    <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-600 p-4 md:p-6">
+      <h2 className="text-xl font-semibold text-gray-100 mb-4">
         Ítems Vendidos ({totalItems})
       </h2>
 
@@ -80,34 +80,34 @@ export function ItemsSold({
       </div>
 
       {filteredItems.length === 0 ? (
-        <p className="text-gray-500">No se vendieron ítems hoy.</p>
+        <p className="text-gray-200">No se vendieron ítems hoy.</p>
       ) : (
         <>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-900">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-200 uppercase">
                     Ítem
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-200 uppercase">
                     Categoría
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-200 uppercase">
                     Platos
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-gray-700 divide-y divide-gray-500">
                 {filteredItems.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <tr key={idx} className="hover:bg-gray-500">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-100">
                       {item.menuItem?.name || "Desconocido"}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-200">
                       {item.menuItem?.category?.name || "Otro"}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-200">
                       {item.totalQuantity}
                     </td>
                   </tr>
@@ -123,7 +123,7 @@ export function ItemsSold({
                 disabled={!hasPrevPage}
                 className={`px-4 py-2 rounded ${
                   !hasPrevPage
-                    ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    ? "bg-gray-200 text-gray-200 cursor-not-allowed"
                     : "bg-gray-100 hover:bg-gray-200 text-gray-700"
                 }`}
               >
@@ -137,7 +137,7 @@ export function ItemsSold({
                 disabled={!hasNextPage}
                 className={`px-4 py-2 rounded ${
                   !hasNextPage
-                    ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    ? "bg-gray-200 text-gray-200 cursor-not-allowed"
                     : "bg-gray-100 hover:bg-gray-200 text-gray-700"
                 }`}
               >

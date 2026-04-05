@@ -78,34 +78,34 @@ export default function MenuTable({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto border border-gray-200 rounded-lg">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="overflow-x-auto border border-gray-600 rounded-lg">
+        <table className="min-w-full divide-y divide-gray-600">
+          <thead className="bg-gray-900">
             <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">
                 Item
               </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">
                 Categoría
               </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">
                 Precio
               </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">
                 Tiempo (min)
               </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">
                 Disponible
               </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">
                 Acciones
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
+          <tbody className="divide-y divide-gray-00 bg-gray-700">
             {filteredItems.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-4 text-center text-gray-500">
+                <td colSpan={6} className="px-4 py-4 text-center text-gray-100">
                   No hay items en esta categoría.
                 </td>
               </tr>
@@ -150,16 +150,16 @@ function TableRow({
   const [state, deleteFormAction] = useFormState(deleteMenuItem, { error: "" });
 
   return (
-    <tr className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-      <td className="px-4 py-3 text-gray-900">
+    <tr className={index % 2 === 0 ? "bg-gray-700" : "bg-gray-600"}>
+      <td className="px-4 py-3 text-gray-100">
         <div className="font-medium">{item.name}</div>
         {item.description && (
           <div className="text-sm text-gray-600">{item.description}</div>
         )}
       </td>
-      <td className="px-4 py-3 text-gray-900">{item.category.name}</td>
-      <td className="px-4 py-3 text-gray-900">S/ {item.price.toFixed(2)}</td>
-      <td className="px-4 py-3 text-gray-900">
+      <td className="px-4 py-3 text-gray-100">{item.category.name}</td>
+      <td className="px-4 py-3 text-gray-100">S/ {item.price.toFixed(2)}</td>
+      <td className="px-4 py-3 text-gray-100">
         {item.prepTimeMin ? `${item.prepTimeMin} min` : "-"}
       </td>
       <td className="px-4 py-3">

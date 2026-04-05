@@ -14,8 +14,8 @@ export function FinancialSummary({ dailySummary, sales, spendings }: Props) {
   const marginPercent = spendings.marginPercent;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6">
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">
+    <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-600 p-4 md:p-6">
+      <h2 className="text-xl font-semibold text-gray-200 mb-4">
         Resumen Financiero
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -77,7 +77,7 @@ export function FinancialSummary({ dailySummary, sales, spendings }: Props) {
       </div>
       {dailySummary.status === "CLOSED" && (
         <div className="mt-4 text-center">
-          <p className="text-xl font-bold text-violet-600">
+          <p className="text-xl font-bold text-violet-400">
             Cierre Final: S/ {dailySummary.endingCash.toFixed(2)}
           </p>
         </div>

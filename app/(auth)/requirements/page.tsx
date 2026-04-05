@@ -78,8 +78,8 @@ export default async function RequirementsPage({
       </div>
 
       {/* Filters - simplified, no status filter since we show all */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
-        <p className="text-xs text-gray-500">
+      <div className="bg-violet-200 border border-gray-200 rounded-xl p-4">
+        <p className="text-xs text-violet-800">
           Mostrando todos los requerimientos creados en las últimas 36 horas
         </p>
       </div>
@@ -94,23 +94,15 @@ export default async function RequirementsPage({
 
       {/* Empty State */}
       {requirements.length === 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
-          <p className="text-gray-600 mb-2">
+        <div className="bg-gray-700 border border-gray-800 rounded-xl p-8 text-center">
+          <p className="text-gray-300 mb-2">
             No hay requerimientos en las últimas 36 horas
           </p>
-          {canCreate && (
-            <a
-              href="/requirements?view=form"
-              className="text-violet-600 hover:text-violet-700 text-sm font-medium"
-            >
-              + Crear nuevo requerimiento
-            </a>
-          )}
         </div>
       )}
 
       {/* Info Card */}
-      <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 text-sm text-violet-800">
+      <div className="bg-violet-200 border border-violet-200 rounded-xl p-4 text-sm text-violet-800">
         <strong>Nota:</strong> Puedes agregar ingredientes a requerimientos
         existentes. La entrega se realiza desde el panel de administración.
       </div>

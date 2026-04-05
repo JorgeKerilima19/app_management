@@ -367,49 +367,49 @@ export default function BarView({
       {/* Prepared Today */}
       {preparedOrders.length > 0 && (
         <div>
-          <h2 className="text-xl font-bold text-gray-900 mb-4 text-center">
+          <h2 className="text-xl font-bold text-gray-100 mb-4 text-center">
             Preparadas Hoy ({preparedOrders.length})
           </h2>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 bg-white border border-gray-200 rounded-xl">
-              <thead className="bg-gray-100">
+            <table className="min-w-full divide-y divide-gray-200 bg-gray-800 border border-gray-600 rounded-xl">
+              <thead className="bg-gray-800">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">
+                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-200">
                     Mesa
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">
+                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-200">
                     Items
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">
+                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-200">
                     Por
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">
+                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-200">
                     Entrada
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">
+                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-200">
                     Entrega
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-800">
                 {preparedOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-4 text-lg font-medium text-gray-900">
+                  <tr key={order.id} className="hover:bg-gray-950">
+                    <td className="px-4 py-4 text-lg font-medium text-gray-100">
                       {order.tableName}
                     </td>
-                    <td className="px-4 py-4 text-lg text-gray-800 max-w-xs">
+                    <td className="px-4 py-4 text-lg text-gray-100 max-w-xs">
                       {order.items}
                     </td>
-                    <td className="px-4 py-4 text-lg text-gray-700">
+                    <td className="px-4 py-4 text-lg text-gray-100">
                       {order.waiterName}
                     </td>
-                    <td className="px-4 py-4 text-lg text-gray-600">
+                    <td className="px-4 py-4 text-lg text-gray-100">
                       {order.orderedAt.toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
                     </td>
-                    <td className="px-4 py-4 text-lg text-gray-600">
+                    <td className="px-4 py-4 text-lg text-gray-100">
                       {order.deliveredAt.toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",

@@ -182,7 +182,9 @@ export default function RecipeEditor({ menuItemId, inventoryItems }: Props) {
 
   return (
     <div>
-      <h4 className="font-medium text-gray-900 mb-3">Ingredientes / Receta</h4>
+      <h4 className="font-medium text-violet-100 bg-violet-600 text-center py-2 mb-3">
+        Ingredientes / Receta
+      </h4>
 
       {/* Add/Edit Form */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
@@ -191,7 +193,7 @@ export default function RecipeEditor({ menuItemId, inventoryItems }: Props) {
             <select
               value={selectedId}
               onChange={(e) => setSelectedId(e.target.value)}
-              className="px-2 py-1 text-sm border border-gray-300 rounded text-black bg-white"
+              className="px-2 py-1 text-sm border border-gray-300 rounded text-gray-300 bg-gray-800"
             >
               <option value="">-- Seleccionar ingrediente --</option>
               {available.map((item) => (
@@ -208,7 +210,7 @@ export default function RecipeEditor({ menuItemId, inventoryItems }: Props) {
               placeholder="Cantidad"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              className="px-2 py-1 text-sm border border-gray-300 rounded text-black bg-white"
+              className="px-2 py-1 text-sm border border-gray-300 rounded text-gray-300 bg-gray-800"
             />
 
             <input
@@ -216,7 +218,7 @@ export default function RecipeEditor({ menuItemId, inventoryItems }: Props) {
               placeholder="Nota (opcional)"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="px-2 py-1 text-sm border border-gray-300 rounded text-black bg-white"
+              className="px-2 py-1 text-sm border border-gray-300 rounded text-gray-300 bg-gray-800"
             />
 
             <button
@@ -247,7 +249,7 @@ export default function RecipeEditor({ menuItemId, inventoryItems }: Props) {
               placeholder="Cantidad"
               value={editQuantity}
               onChange={(e) => setEditQuantity(e.target.value)}
-              className="px-2 py-1 text-sm border border-gray-300 rounded text-black bg-white"
+              className="px-2 py-1 text-sm border border-gray-300 rounded text-gray-300 bg-gray-800"
             />
 
             <input
@@ -255,7 +257,7 @@ export default function RecipeEditor({ menuItemId, inventoryItems }: Props) {
               placeholder="Nota (opcional)"
               value={editNote}
               onChange={(e) => setEditNote(e.target.value)}
-              className="px-2 py-1 text-sm border border-gray-300 rounded text-black bg-white"
+              className="px-2 py-1 text-sm border border-gray-300 rounded text-gray-300 bg-gray-800"
             />
 
             <div className="flex gap-1">
@@ -263,7 +265,7 @@ export default function RecipeEditor({ menuItemId, inventoryItems }: Props) {
                 type="button"
                 onClick={handleUpdate}
                 disabled={!editQuantity || saving}
-                className="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600 disabled:opacity-50"
+                className="px-3 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 disabled:opacity-50"
               >
                 {saving ? "Guardando..." : "Actualizar"}
               </button>
@@ -271,7 +273,7 @@ export default function RecipeEditor({ menuItemId, inventoryItems }: Props) {
                 type="button"
                 onClick={handleCancelEdit}
                 disabled={saving}
-                className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm hover:bg-gray-400 disabled:opacity-50"
+                className="px-3 py-1 bg-gray-300 text-gray-900 rounded text-xs hover:bg-gray-400 disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -286,13 +288,13 @@ export default function RecipeEditor({ menuItemId, inventoryItems }: Props) {
           {recipes.map((r) => (
             <li
               key={r.inventoryItemId}
-              className={`flex justify-between items-center p-2 rounded ${
+              className={`flex justify-between border border-violet-400 items-center p-2 rounded ${
                 editingId === r.inventoryItemId
-                  ? "bg-violet-50 border border-violet-200"
-                  : "bg-gray-50"
+                  ? "bg-violet-800"
+                  : "bg-gray-800"
               }`}
             >
-              <span className="text-sm text-gray-900">
+              <span className="text-sm text-gray-100">
                 {r.inventoryItem.name} x {r.quantityRequired} {r.unit}
                 {r.note && <span className="text-gray-500"> — {r.note}</span>}
               </span>
@@ -303,7 +305,7 @@ export default function RecipeEditor({ menuItemId, inventoryItems }: Props) {
                       type="button"
                       onClick={() => handleEdit(r)}
                       disabled={saving}
-                      className="text-blue-600 text-xs hover:underline disabled:opacity-50"
+                      className="text-blue-100 text-xs hover:underline disabled:opacity-50"
                     >
                       Editar
                     </button>
@@ -317,7 +319,7 @@ export default function RecipeEditor({ menuItemId, inventoryItems }: Props) {
                     </button>
                   </>
                 ) : (
-                  <span className="text-xs text-violet-600 font-medium">
+                  <span className="text-xs text-violet-100 font-medium">
                     Editando...
                   </span>
                 )}

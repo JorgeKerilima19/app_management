@@ -16,7 +16,6 @@ type Props = {
 };
 
 export default function CategoryForm({ isEdit, category }: Props) {
-  // ✅ useFormState gives you a form-compatible action
   const [state, formAction] = useFormState(
     isEdit ? updateCategory : createCategory,
     { error: "" }
@@ -34,7 +33,7 @@ export default function CategoryForm({ isEdit, category }: Props) {
           name="name"
           placeholder="Nueva categoría"
           required
-          className="px-2 py-1 text-sm border border-gray-300 rounded text-black bg-white"
+          className="px-2 py-1 text-sm border border-gray-300 rounded text-gray-900 bg-gray-200"
         />
         <label className="flex items-center gap-1 text-sm text-gray-900">
           <input
@@ -68,7 +67,7 @@ export default function CategoryForm({ isEdit, category }: Props) {
           name="name"
           defaultValue={category!.name}
           required
-          className="px-2 py-1 text-sm border border-gray-300 rounded text-black bg-white w-32"
+          className="px-2 py-1 text-sm border border-gray-300 rounded text-gray-200 bg-gray-800 w-32"
         />
         <label className="flex items-center gap-1 text-sm text-gray-900">
           <input

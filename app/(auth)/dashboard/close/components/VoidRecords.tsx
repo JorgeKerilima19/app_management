@@ -15,13 +15,13 @@ type Props = {
 
 export function VoidRecords({ records }: Props) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6">
+    <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-600 p-4 md:p-6">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold text-gray-800">
+        <h2 className="text-xl font-semibold text-violet-400">
           Anulaciones ({records.length})
         </h2>
         {records.length > 0 && (
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-gray-100">
             Total anulado: S/{" "}
             {records
               .reduce((sum, r) => {
@@ -36,7 +36,6 @@ export function VoidRecords({ records }: Props) {
                       r._metadata.quantities.voided
                   );
                 }
-                // ✅ CHECK: Use check total from metadata
                 if (
                   r.target === "Cuenta Anulada" &&
                   r._metadata?.check?.total
@@ -51,38 +50,37 @@ export function VoidRecords({ records }: Props) {
       </div>
 
       {records.length === 0 ? (
-        <p className="text-gray-500 text-center py-4">No hay anulaciones hoy</p>
+        <p className="text-gray-100 text-center py-4">No hay anulaciones hoy</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-600">
+            <thead className="bg-gray-900">
               <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-100 uppercase">
                   Hora
                 </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-100 uppercase">
                   Personal
                 </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-100 uppercase">
                   Tipo
                 </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-100 uppercase">
                   Detalles
                 </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-100 uppercase">
                   Cant.
                 </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-100 uppercase">
                   Total (S/)
                 </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-100 uppercase">
                   Motivo
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-gray-700 divide-y divide-gray-600">
               {records.map((record) => {
-                // ✅ Calculate amount with better fallbacks
                 let amount = "—";
 
                 if (
@@ -106,14 +104,14 @@ export function VoidRecords({ records }: Props) {
                 }
 
                 return (
-                  <tr key={record.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                  <tr key={record.id} className="hover:bg-gray-500">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-100">
                       {new Date(record.createdAt).toLocaleTimeString("es-PE", {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-100">
                       {record.voidedBy?.name || "Desconocido"}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -130,18 +128,18 @@ export function VoidRecords({ records }: Props) {
                       </span>
                     </td>
 
-                    <td className="px-4 py-3 text-sm text-gray-900 max-w-md">
+                    <td className="px-4 py-3 text-sm text-gray-300 max-w-md">
                       <div className="truncate" title={record.targetDetails}>
                         {record.targetDetails || "Sin detalles"}
                       </div>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-100">
                       {record.totalVoided}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-100">
                       {amount !== "—" ? `S/ ${amount}` : "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500 max-w-xs">
+                    <td className="px-4 py-3 text-sm text-gray-100 max-w-xs">
                       <div className="truncate" title={record.reason}>
                         {record.reason || "—"}
                       </div>

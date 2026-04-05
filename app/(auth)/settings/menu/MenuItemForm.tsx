@@ -83,13 +83,12 @@ export default function MenuItemForm({
 
   const activeCategories = categories.filter((c) => c.isActive);
 
-  // ✅ State for toggling recipe editor in edit mode
   const [showRecipeEditor, setShowRecipeEditor] = useState(false);
 
   return (
     <form
       action={formAction}
-      className="p-3 border border-gray-200 rounded bg-gray-50 space-y-3"
+      className="p-3 border border-gray-600 rounded bg-gray-700 space-y-3"
     >
       {isEdit && initialData && (
         <input type="hidden" name="id" value={initialData.id} />
@@ -103,7 +102,7 @@ export default function MenuItemForm({
             placeholder="Nombre *"
             required
             defaultValue={isEdit && initialData ? initialData.name : ""}
-            className="w-full px-2 py-1 text-sm border border-gray-300 rounded text-black bg-white"
+            className="w-full px-2 py-1 text-sm border border-gray-500 rounded text-white bg-gray-500"
           />
         </div>
 
@@ -112,7 +111,7 @@ export default function MenuItemForm({
             name="categoryId"
             required
             defaultValue={isEdit && initialData ? initialData.categoryId : ""}
-            className="w-full px-2 py-1 text-sm border border-gray-300 rounded text-black bg-white"
+            className="w-full px-2 py-1 text-sm border border-gray-500 rounded text-white bg-gray-500"
           >
             <option value="">-- Categoría --</option>
             {activeCategories.map((cat) => (
@@ -128,7 +127,7 @@ export default function MenuItemForm({
             name="station"
             required
             defaultValue={isEdit && initialData ? initialData.station : ""}
-            className="w-full px-2 py-1 text-sm border border-gray-300 rounded text-black bg-white"
+            className="w-full px-2 py-1 text-sm border border-gray-500 rounded text-white bg-gray-500"
           >
             <option value="">-- Estación --</option>
             <option value="KITCHEN">Cocina</option>
@@ -145,7 +144,7 @@ export default function MenuItemForm({
             placeholder="Precio *"
             required
             defaultValue={isEdit && initialData ? initialData.price : ""}
-            className="w-full px-2 py-1 text-sm border border-gray-300 rounded text-black bg-white"
+            className="w-full px-2 py-1 text-sm border border-gray-500 rounded text-white bg-gray-500"
           />
           <SubmitButton isEdit={isEdit} />
         </div>
@@ -159,7 +158,7 @@ export default function MenuItemForm({
           defaultValue={
             isEdit && initialData ? initialData.description || "" : ""
           }
-          className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded text-black bg-white"
+          className="flex-1 px-2 py-1 text-sm border border-gray-500 rounded text-white bg-gray-500"
         />
         <input
           type="number"
@@ -169,9 +168,9 @@ export default function MenuItemForm({
           defaultValue={
             isEdit && initialData ? initialData.prepTimeMin || "" : ""
           }
-          className="w-20 px-2 py-1 text-sm border border-gray-300 rounded text-black bg-white"
+          className="w-20 px-2 py-1 text-sm border border-gray-500 rounded text-white bg-gray-500"
         />
-        <label className="flex items-center gap-1 text-sm text-gray-900">
+        <label className="flex items-center gap-1 text-sm text-gray-200">
           <input
             type="checkbox"
             name="isAvailable"
@@ -184,7 +183,6 @@ export default function MenuItemForm({
         </label>
       </div>
 
-      {/* ✅ Recipe Editor Toggle - Only in Edit Mode */}
       {isEdit && initialData && inventoryItems.length > 0 && (
         <div className="pt-2 border-t border-gray-200">
           <button
@@ -193,8 +191,8 @@ export default function MenuItemForm({
             className="text-sm text-violet-600 hover:text-violet-800 font-medium flex items-center gap-1"
           >
             {showRecipeEditor
-              ? "▲ Ocultar Receta"
-              : "📋 Editar Receta / Ingredientes"}
+              ? "Ocultar Receta"
+              : "Editar Receta / Ingredientes"}
           </button>
 
           {showRecipeEditor && (
@@ -208,9 +206,8 @@ export default function MenuItemForm({
         </div>
       )}
 
-      {/* ✅ Show message if inventoryItems not provided in edit mode */}
       {isEdit && initialData && inventoryItems.length === 0 && (
-        <p className="text-xs text-gray-500 italic">
+        <p className="text-xs text-gray-100 italic">
           💡 Para gestionar ingredientes, carga los items de inventario en el
           componente padre.
         </p>

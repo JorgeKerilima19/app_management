@@ -216,7 +216,6 @@ export default function RequirementsList({
                 </table>
               </div>
 
-              {/* Summary Footer */}
               <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex justify-between items-center text-sm">
                 <span className="text-gray-600">
                   {req.items.length} item{req.items.length !== 1 ? "s" : ""} •{" "}
@@ -243,7 +242,6 @@ export default function RequirementsList({
         })}
       </div>
 
-      {/* Confirm Dialog */}
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         title={confirmDialog.title}

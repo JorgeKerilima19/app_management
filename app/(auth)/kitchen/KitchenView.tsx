@@ -202,14 +202,12 @@ export default function KitchenView({
 
   return (
     <div className="space-y-8">
-      {/* Requirements Button */}
-
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">
+        <h2 className="text-2xl font-bold text-gray-100 mb-4">
           Ordenes Activas ({activeOrders.length})
         </h2>
         {activeOrders.length === 0 ? (
-          <p className="text-gray-500 text-center py-8 text-xl">
+          <p className="text-gray-100 text-center py-8 text-xl">
             No hay ordenes pendientes
           </p>
         ) : (
@@ -228,7 +226,6 @@ export default function KitchenView({
                     hasCancelled ? "opacity-90" : ""
                   }`}
                   onClick={() => {
-                    // Only mark as ready if not cancelled
                     if (!hasCancelled) {
                       order.items
                         .filter((item) => !item.isCancelled)
@@ -326,7 +323,6 @@ export default function KitchenView({
                     )}
                   </div>
 
-                  {/*  Cancelled Order Banner */}
                   {hasCancelled && (
                     <div className="mt-3 pt-3 border-t border-gray-400">
                       <p
@@ -343,52 +339,51 @@ export default function KitchenView({
         )}
       </div>
 
-      {/* Prepared Today - TABLE */}
       {preparedOrders.length > 0 && (
         <div>
-          <h2 className="text-xl font-bold text-gray-900 mb-4">
+          <h2 className="text-xl font-bold text-gray-100 mb-4">
             Preparadas Hoy ({preparedOrders.length})
           </h2>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 bg-white border border-gray-200 rounded-lg">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-gray-800 bg-gray-500 border border-gray-200 rounded-lg">
+              <thead className="bg-gray-600">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-200 uppercase">
                     Mesa
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-200 uppercase">
                     Items
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-200 uppercase">
                     Por
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-200 uppercase">
                     Hora Entrada
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-200 uppercase">
                     Hora Entrega
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {preparedOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                  <tr key={order.id} className="hover:bg-gray-900">
+                    <td className="px-4 py-3 text-sm font-medium text-gray-100">
                       {order.tableName}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-800">
+                    <td className="px-4 py-3 text-sm text-gray-100">
                       {order.items}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
+                    <td className="px-4 py-3 text-sm text-gray-100">
                       {order.waiterName}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-3 text-sm text-gray-100">
                       {order.orderedAt.toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-3 text-sm text-gray-100">
                       {order.deliveredAt.toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",

@@ -52,9 +52,9 @@ export default async function MenuSettingsPage() {
       </div>
 
       {/* Categorías */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Categorías</h2>
+          <h2 className="text-lg font-semibold text-violet-400">Categorías</h2>
           <CategoryForm isEdit={false} />
         </div>
         {categories.length === 0 ? (
@@ -66,12 +66,12 @@ export default async function MenuSettingsPage() {
                 key={cat.id}
                 className={`p-3 border rounded flex justify-between items-center ${
                   cat.isActive
-                    ? "border-gray-200"
-                    : "border-gray-200 bg-gray-50"
+                    ? "border-gray-500"
+                    : "border-gray-500 bg-gray-500"
                 }`}
               >
                 <span
-                  className={`text-gray-900 ${cat.isActive ? "" : "line-through text-gray-500"}`}
+                  className={`text-gray-100 ${cat.isActive ? "" : "line-through text-gray-500"}`}
                 >
                   {cat.name}
                 </span>
@@ -83,9 +83,9 @@ export default async function MenuSettingsPage() {
       </div>
 
       {/* Items del Menú */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">
+      <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-600 p-6">
+        <div className="flex flex-col gap-5 justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-violet-400">
             Items del Menú
           </h2>
           <MenuItemForm
@@ -99,7 +99,7 @@ export default async function MenuSettingsPage() {
             Debe crear al menos una categoría antes de añadir items.
           </p>
         ) : serializedItems.length === 0 ? (
-          <p className="text-gray-500 text-sm">No hay items en el menú.</p>
+          <p className="text-gray-400 text-sm">No hay items en el menú.</p>
         ) : (
           <MenuTable
             items={serializedItems}

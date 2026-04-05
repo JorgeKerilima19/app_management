@@ -89,8 +89,8 @@ export default function RequirementsForm({
 
       alert(
         existingRequirementId
-          ? "✅ Items agregados"
-          : "✅ Requerimiento creado",
+          ? "Items agregados"
+          : "Requerimiento creado",
       );
       handleClose();
       window.location.reload();
@@ -147,18 +147,18 @@ export default function RequirementsForm({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-gray-900/50 bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-gray-900 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-gray-900">
+        <div className="sticky top-0 bg-violet-600 border-b border-gray-200 p-4 flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-gray-100">
             {existingRequirementId
               ? "Agregar Ingredientes"
               : "Nuevo Requerimiento"}
           </h3>
           <button
             onClick={handleClose}
-            className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+            className="text-gray-100 hover:text-gray-500 text-2xl leading-none"
             aria-label="Cerrar"
           >
             ×
@@ -166,17 +166,16 @@ export default function RequirementsForm({
         </div>
 
         <div className="p-4 space-y-4">
-          {/* Date - only show if creating new */}
           {!existingRequirementId && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
                 Fecha requerida *
               </label>
               <input
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded text-gray-900 bg-white"
+                className="w-full px-3 py-2 border border-gray-100 rounded text-gray-900 bg-gray-400"
               />
             </div>
           )}
@@ -184,7 +183,7 @@ export default function RequirementsForm({
           {/* Notes - only show if creating new */}
           {!existingRequirementId && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
                 Notas adicionales
               </label>
               <textarea
@@ -192,14 +191,14 @@ export default function RequirementsForm({
                 onChange={(e) => setNotes(e.target.value)}
                 rows={2}
                 placeholder="Ej: Evento especial, fin de semana largo..."
-                className="w-full px-3 py-2 border border-gray-300 rounded text-gray-900 bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded text-gray-100 bg-gray-800"
               />
             </div>
           )}
 
           {/* Search */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-300 mb-1">
               Buscar ingrediente
             </label>
             <input
@@ -207,7 +206,7 @@ export default function RequirementsForm({
               placeholder="Nombre o categoría..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded text-gray-900 bg-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded text-gray-200 bg-gray-800"
               autoFocus
             />
           </div>
@@ -217,7 +216,7 @@ export default function RequirementsForm({
             <select
               value={selectedItemId}
               onChange={(e) => setSelectedItemId(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded text-sm text-gray-900 bg-white sm:col-span-2"
+              className="px-3 py-2 border border-gray-300 rounded text-sm text-gray-50 bg-gray-800 sm:col-span-2"
             >
               <option value="">-- Seleccionar --</option>
               {filteredItems.map((item) => (
@@ -235,7 +234,7 @@ export default function RequirementsForm({
               placeholder="Cantidad"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded text-sm text-gray-900 bg-white"
+              className="px-3 py-2 border border-gray-300 rounded text-sm text-gray-100 bg-gray-800"
             />
 
             <button
@@ -254,7 +253,7 @@ export default function RequirementsForm({
             placeholder="Nota para este ingrediente (opcional)"
             value={itemNotes}
             onChange={(e) => setItemNotes(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded text-sm text-gray-900 bg-white"
+            className="w-full px-3 py-2 border border-gray-300 rounded text-sm text-gray-50 bg-gray-800"
           />
 
           {/* Pending items list */}
@@ -263,12 +262,12 @@ export default function RequirementsForm({
               {pendingItems.map((item) => (
                 <div
                   key={item.inventoryItemId}
-                  className="flex justify-between items-center p-2 bg-gray-50 rounded border border-gray-200"
+                  className="flex justify-between items-center p-2 bg-gray-900 rounded border border-gray-200"
                 >
-                  <span className="text-sm text-gray-900">
+                  <span className="text-sm text-gray-200">
                     <strong>{item.name}</strong> × {item.quantity} {item.unit}
                     {item.notes && (
-                      <span className="text-gray-500"> — {item.notes}</span>
+                      <span className="text-gray-200"> — {item.notes}</span>
                     )}
                   </span>
                   <button
@@ -307,8 +306,8 @@ export default function RequirementsForm({
               {loading
                 ? "Guardando..."
                 : existingRequirementId
-                  ? "✅ Agregar Items"
-                  : "✅ Crear Requerimiento"}
+                  ? "Agregar Items"
+                  : "Crear Requerimiento"}
             </button>
           </div>
         </div>

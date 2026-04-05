@@ -17,7 +17,7 @@ export default async function BarPage() {
   ]);
 
   return (
-    <div className="p-4 max-w-6xl mx-auto bg-white min-h-screen">
+    <div className="p-4 max-w-6xl mx-auto bg-gray-900 min-h-screen">
       <LogoutButton />
       <h1 className="text-3xl font-bold text-violet-600 mb-6">Bar</h1>
       <BarView initialActive={active} initialPrepared={prepared} />

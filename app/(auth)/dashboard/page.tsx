@@ -67,7 +67,7 @@ export default async function DashboardPage() {
           </form>
         </div>
       ) : (
-        <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-600 p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-200">
               Restaurante Abierto
